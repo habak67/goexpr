@@ -191,16 +191,18 @@ func (ev Value) SearchAll(key Value) ([]Value, bool) {
 }
 
 // Assign assigns a specified sub-value to the specified key.
-func (ev Value) Assign(_ string, _ Value) {
+func (ev Value) Assign(_ interface{}, _ Value) {
 	panic(fmt.Sprintf("value type %v is not assignable", ev.Type.BaseType))
 }
 
 // Reference returns the sub-value for the specified key
-func (ev Value) Reference(key string) Value {
+func (ev Value) Reference(key interface{}) Value {
 	switch ev.Type.BaseType {
 	case VTMap:
+		// We only support string based map keys
+		keyS := key.(string)
 		v := ev.Value.(map[string]Value)
-		return v[key]
+		return v[keyS]
 	default:
 		panic(fmt.Sprintf("value type %v is not referable", ev.Type.BaseType))
 	}

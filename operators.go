@@ -76,7 +76,7 @@ type operator interface {
 	ResType() TypeSignature
 	// Evaluate executes the operator using a specified request context. The result of the operator execution is returned.
 	Evaluate(context RequestContext) (Value, error)
-	// nilResult returns a nil value the the value type of the operator result type
+	// nilResult returns a nil value of the value type of the operator result type
 	nilResult() Value
 }
 
@@ -93,7 +93,7 @@ type opAssign struct {
 	// The name of the reference as specified in the rule definition.
 	name string
 	// The reference key
-	key string
+	key interface{}
 	// The value to be written "assigned" to the reference.
 	valueOp operator
 	// The source for the reference operation (heap or variable).
@@ -387,7 +387,7 @@ type opReference struct {
 	// The name of the reference as specified in the rule definition.
 	name string
 	// The reference key
-	key string
+	key interface{}
 	// The source for the reference operation (heap or variable).
 	source ReferenceSource
 	// If the source is "variable" the source op is used to get the variable.

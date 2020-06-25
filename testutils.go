@@ -8,7 +8,7 @@ func testBaseOp(rt TypeSignature) baseOperator {
 	}
 }
 
-func newTestOpAssign(name string, key string, valueOp, sourceOp operator, source ReferenceSource) *opAssign {
+func newTestOpAssign(name string, key interface{}, valueOp, sourceOp operator, source ReferenceSource) *opAssign {
 	return &opAssign{
 		baseOperator: testBaseOp(valueOp.ResType()),
 		name:         name,
@@ -63,7 +63,7 @@ func newTestOpLogical(lt LogicalType, leftOp operator, rightOp operator) *opLogi
 	}
 }
 
-func newTestOpReference(name string, key string, sourceOp operator, source ReferenceSource, resType TypeSignature) *opReference {
+func newTestOpReference(name string, key interface{}, sourceOp operator, source ReferenceSource, resType TypeSignature) *opReference {
 	return &opReference{
 		baseOperator: testBaseOp(resType),
 		name:         name,
@@ -94,16 +94,20 @@ type testRequestContext struct {
 	Values map[string]Value
 }
 
-func (rc testRequestContext) Reference(key string, ts TypeSignature) Value {
-	v, found := rc.Values[key]
+func (rc testRequestContext) Reference(key interface{}, ts TypeSignature) Value {
+	// We only support string based keys in our test context
+	keyS := key.(string)
+	v, found := rc.Values[keyS]
 	if !found {
 		return NewNilExprValue(ts)
 	}
 	return v
 }
 
-func (rc testRequestContext) Assign(key string, value Value) {
-	rc.Values[key] = value
+func (rc testRequestContext) Assign(key interface{}, value Value) {
+	// We only support string based keys in our test context
+	keyS := key.(string)
+	rc.Values[keyS] = value
 }
 
 func newEmptyTestRequestContext() RequestContext {
