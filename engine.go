@@ -1,7 +1,5 @@
 package goexpr
 
-import "fmt"
-
 type RequestContext interface {
 	// Reference returns the value connected to the specified key. If key is not found an empty value
 	// of the specified type signature is returned. The concrete key datatype is dependent on the
@@ -12,13 +10,6 @@ type RequestContext interface {
 	Assign(key interface{}, value Value)
 }
 
-type Expression struct {
-	op operator
-}
-
-func (e *Expression) Evaluate(reqContext RequestContext) (Value, error) {
-	if reqContext == nil {
-		return e.op.nilResult(), fmt.Errorf("invalid null request context")
-	}
-	return e.op.Evaluate(reqContext)
+type Expression interface {
+	Evaluate(reqContext RequestContext) (Value, error)
 }

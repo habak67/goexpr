@@ -68,14 +68,14 @@ func (bo baseOperator) nilResult() Value {
 
 // operator represent a specific expression that calculates a result value from a set of sub-expressions.
 type operator interface {
+	// An operator is an expression
+	Expression
 	// Line returns the source line number in the rule specification for the start of the operator definition
 	Line() int
 	// Col returns the source column number in the rule specification for the start of the operator definition
 	Col() int
 	// ResType returns the result type of the operator
 	ResType() TypeSignature
-	// Evaluate executes the operator using a specified request context. The result of the operator execution is returned.
-	Evaluate(context RequestContext) (Value, error)
 	// nilResult returns a nil value of the value type of the operator result type
 	nilResult() Value
 }
