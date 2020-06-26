@@ -75,9 +75,9 @@ func TestOperator_Evaluate_Ok(t *testing.T) {
 			newTestOpConstant(NewExprValueInteger(2))), NewExprValueBoolean(false)},
 
 		{"OpCompareMatchTrue", newTestOpCompare(CTMatch, newTestOpConstant(NewExprValueString("123")),
-			newTestOpConstant(NewExprValueRegexpSilent("[0-9]{3}"))), NewExprValueBoolean(true)},
+			newTestOpConstant(NewExprValueRegexpMust("[0-9]{3}"))), NewExprValueBoolean(true)},
 		{"OpCompareMatchFalse", newTestOpCompare(CTMatch, newTestOpConstant(NewExprValueString("no match")),
-			newTestOpConstant(NewExprValueRegexpSilent("[0-9]{3}"))), NewExprValueBoolean(false)},
+			newTestOpConstant(NewExprValueRegexpMust("[0-9]{3}"))), NewExprValueBoolean(false)},
 		// constant ---------------------------------------
 		{"opConstant", newTestOpConstant(NewExprValueString("foo")), NewExprValueString("foo")},
 		// for ---------------------------------------
@@ -204,26 +204,16 @@ func TestOperator_Evaluate_Ok(t *testing.T) {
 			nil, STExist, NewScalarTypeSignature(VTBoolean)), NewExprValueBoolean(false)},
 		{"OpSearchExistMapFound", newTestOpSearch(
 			newTestOpConstant(NewExprValueString("foo")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"foo": {
-					NewExprValueString("foo1"),
-				},
-				"bar": {
-					NewExprValueString("bar11"),
-					NewExprValueString("bar12"),
-				},
+			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"foo": NewExprValueString("foo1"),
+				"bar": NewExprValueString("bar1"),
 			})),
 			nil, STExist, NewScalarTypeSignature(VTBoolean)), NewExprValueBoolean(true)},
 		{"OpSearchExistMapNotFound", newTestOpSearch(
 			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"foo": {
-					NewExprValueString("foo1"),
-				},
-				"bar": {
-					NewExprValueString("bar11"),
-					NewExprValueString("bar12"),
-				},
+			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"foo": NewExprValueString("foo1"),
+				"bar": NewExprValueString("bar1"),
 			})),
 			nil, STExist, NewScalarTypeSignature(VTBoolean)), NewExprValueBoolean(false)},
 
@@ -263,68 +253,35 @@ func TestOperator_Evaluate_Ok(t *testing.T) {
 			nil, STFind, NewScalarTypeSignature(VTString)),
 			EvNilString},
 
-		{"OpSearchFindMapFoundSingle", newTestOpSearch(
+		{"OpSearchFindMapFound", newTestOpSearch(
 			newTestOpConstant(NewExprValueString("foo")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"foo": {
-					NewExprValueString("foo1"),
-				},
-				"bar": {
-					NewExprValueString("bar11"),
-					NewExprValueString("bar12"),
-				},
+			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"foo": NewExprValueString("foo1"),
+				"bar": NewExprValueString("bar1"),
 			})),
 			newTestOpConstant(NewExprValueString("baz")), STFind, NewScalarTypeSignature(VTString)),
 			NewExprValueString("foo1")},
-		{"OpSearchFindMapFoundMulti", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("bar")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"foo": {
-					NewExprValueString("foo1"),
-				},
-				"bar": {
-					NewExprValueString("bar11"),
-					NewExprValueString("bar12"),
-				},
-			})),
-			newTestOpConstant(NewExprValueString("baz")), STFind, NewScalarTypeSignature(VTString)),
-			NewExprValueString("bar11")},
 		{"OpSearchFindMapNotFoundDefault", newTestOpSearch(
 			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"foo": {
-					NewExprValueString("foo1"),
-				},
-				"bar": {
-					NewExprValueString("bar11"),
-					NewExprValueString("bar12"),
-				},
+			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"foo": NewExprValueString("foo1"),
+				"bar": NewExprValueString("bar1"),
 			})),
 			newTestOpConstant(NewExprValueString("default")), STFind, NewScalarTypeSignature(VTString)),
 			NewExprValueString("default")},
 		{"OpSearchFindMapNotFoundDefaultNil", newTestOpSearch(
 			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"foo": {
-					NewExprValueString("foo1"),
-				},
-				"bar": {
-					NewExprValueString("bar11"),
-					NewExprValueString("bar12"),
-				},
+			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"foo": NewExprValueString("foo1"),
+				"bar": NewExprValueString("bar1"),
 			})),
 			newTestOpConstant(EvNilString), STFind, NewScalarTypeSignature(VTString)),
 			EvNilString},
 		{"OpSearchFindMapNotFoundNoDefault", newTestOpSearch(
 			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"foo": {
-					NewExprValueString("foo1"),
-				},
-				"bar": {
-					NewExprValueString("bar11"),
-					NewExprValueString("bar12"),
-				},
+			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"foo": NewExprValueString("foo1"),
+				"bar": NewExprValueString("bar1"),
 			})),
 			nil, STFind, NewScalarTypeSignature(VTString)),
 			EvNilString},
@@ -368,16 +325,11 @@ func TestOperator_Evaluate_Ok(t *testing.T) {
 			NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("default"),
 			})},
-		{"OpSearchFindAllMapFoundSingle", newTestOpSearch(
+		{"OpSearchFindAllMapFound", newTestOpSearch(
 			newTestOpConstant(NewExprValueString("foo")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"foo": {
-					NewExprValueString("foo1"),
-				},
-				"bar": {
-					NewExprValueString("bar11"),
-					NewExprValueString("bar12"),
-				},
+			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"foo": NewExprValueString("foo1"),
+				"bar": NewExprValueString("bar1"),
 			})),
 			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("baz"),
@@ -385,34 +337,11 @@ func TestOperator_Evaluate_Ok(t *testing.T) {
 			NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo1"),
 			})},
-		{"OpSearchFindAllMapFoundMulti", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("bar")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"foo": {
-					NewExprValueString("foo1"),
-				},
-				"bar": {
-					NewExprValueString("bar11"),
-					NewExprValueString("bar12"),
-				},
-			})),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
-				NewExprValueString("baz"),
-			})), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString))),
-			NewExprValueList(NewScalarTypeSignature(VTString), []Value{
-				NewExprValueString("bar11"),
-				NewExprValueString("bar12"),
-			})},
 		{"OpSearchFindAllMapNotFound", newTestOpSearch(
 			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"foo": {
-					NewExprValueString("foo1"),
-				},
-				"bar": {
-					NewExprValueString("bar11"),
-					NewExprValueString("bar12"),
-				},
+			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"foo": NewExprValueString("foo1"),
+				"bar": NewExprValueString("bar1"),
 			})),
 			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("baz"),

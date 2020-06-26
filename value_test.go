@@ -33,26 +33,21 @@ func TestValue_Json(t *testing.T) {
 {"type":{"base_type":"integer"},"value":3}`},
 		{"list", NewExprValueList(NewScalarTypeSignature(VTString),
 			[]Value{
-				NewExprValue(NewScalarTypeSignature(VTString), "string 1"),
-				NewExprValue(NewScalarTypeSignature(VTString), "string 2"),
+				NewExprValueMust(NewScalarTypeSignature(VTString), "string 1"),
+				NewExprValueMust(NewScalarTypeSignature(VTString), "string 2"),
 			}), `
 {"type":{"base_type":"list","unit_type":{"base_type":"string"}},"value":[
 {"type":{"base_type":"string"},"value":"string 1"},
 {"type":{"base_type":"string"},"value":"string 2"}]}`},
 		{"map", NewExprValueMap(NewScalarTypeSignature(VTString),
-			map[string][]Value{
-				"one": {
-					NewExprValueString("string 1"),
-				},
-				"two": {
-					NewExprValueString("string 21"),
-					NewExprValueString("string 22"),
-				},
+			map[string]Value{
+				"one": NewExprValueString("string 1"),
+				"two": NewExprValueString("string 2"),
 			}), `
 {"type":{"base_type":"map","unit_type":{"base_type":"string"}},"value":{
-"one":[{"type":{"base_type":"string"},"value":"string 1"}],
-"two":[{"type":{"base_type":"string"},"value":"string 21"},{"type":{"base_type":"string"},"value":"string 22"}]}}`},
-		{"regexp", NewExprValueRegexpSilent("[0-9]{3}"), `
+"one":{"type":{"base_type":"string"},"value":"string 1"},
+"two":{"type":{"base_type":"string"},"value":"string 2"}}}`},
+		{"regexp", NewExprValueRegexpMust("[0-9]{3}"), `
 {"type":{"base_type":"regexp"},"value":"[0-9]{3}"}`},
 		{"string", NewExprValueString("a string"), `
 {"type":{"base_type":"string"},"value":"a string"}`},
@@ -79,7 +74,6 @@ func TestValue_Json(t *testing.T) {
 			}
 			if !rv.Equal(test.rv) {
 				t.Errorf("invalid values\nactual:   %v\nexpected: %v", rv, test.rv)
-				return
 			}
 		})
 	}
@@ -140,60 +134,53 @@ func TestValue_Equal(t *testing.T) {
 				NewExprValueString("value1"), NewExprValueString("another value")}), false},
 
 		{"mapTrue",
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("value1")}}),
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("value1")}}), true},
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1": NewExprValueString("value1"),
+				"key2": NewExprValueString("value2")}),
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1": NewExprValueString("value1"),
+				"key2": NewExprValueString("value2")}), true},
 		{"mapFalseUnitType",
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("value1")}}),
-			NewExprValueMap(NewScalarTypeSignature(VTInteger), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("value1")}}), false},
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1": NewExprValueString("value1"),
+				"key2": NewExprValueString("value2")}),
+			NewExprValueMap(NewScalarTypeSignature(VTInteger), map[string]Value{
+				"key1": NewExprValueString("value1"),
+				"key2": NewExprValueString("value2")}), false},
 		{"mapFalseMapLen",
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("value1")}}),
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")}}), false},
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1": NewExprValueString("value1"),
+				"key2": NewExprValueString("value2")}),
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1": NewExprValueString("value1")}), false},
 		{"mapFalseKey",
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("value1")}}),
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1":       {NewExprValueString("value1")},
-				"anotherKey": {NewExprValueString("value1")}}), false},
-		{"mapFalseEntryLen",
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("value1")}}),
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("value1"), NewExprValueString("value11")}}), false},
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1": NewExprValueString("value1"),
+				"key2": NewExprValueString("value2")}),
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1":        NewExprValueString("value1"),
+				"another key": NewExprValueString("value2")}), false},
 		{"mapFalseValueType",
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("value1")}}),
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueInteger(2)}}), false},
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1": NewExprValueString("value1"),
+				"key2": NewExprValueString("value2")}),
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1": NewExprValueString("value1"),
+				"key2": NewExprValueInteger(2)}), false},
 		{"mapFalseValueValue",
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("value1")}}),
-			NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-				"key1": {NewExprValueString("value1")},
-				"key2": {NewExprValueString("another value")}}), false},
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1": NewExprValueString("value1"),
+				"key2": NewExprValueString("value2")}),
+			NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+				"key1": NewExprValueString("value1"),
+				"key2": NewExprValueString("another value")}), false},
 
 		{"regexpTrue",
-			NewExprValueRegexpSilent("[0-9]{3}"), NewExprValueRegexpSilent("[0-9]{3}"), true},
+			NewExprValueRegexpMust("[0-9]{3}"), NewExprValueRegexpMust("[0-9]{3}"), true},
 		{"regexpFalse",
-			NewExprValueRegexpSilent("[0-9]{3}"), NewExprValueRegexpSilent("another regexp"), false},
+			NewExprValueRegexpMust("[0-9]{3}"), NewExprValueRegexpMust("another regexp"), false},
 		{"regexpFalseType",
-			NewExprValueRegexpSilent("[0-9]{3}"), NewExprValueString("[0-9]{3}"), false},
+			NewExprValueRegexpMust("[0-9]{3}"), NewExprValueString("[0-9]{3}"), false},
 
 		{"stringTrue",
 			NewExprValueString("a string"), NewExprValueString("a string"), true},
@@ -207,7 +194,6 @@ func TestValue_Equal(t *testing.T) {
 			res := test.rv1.Equal(test.rv2)
 			if res != test.result {
 				t.Errorf("invalid result (%v != %v)\nvalue1: %v\nvalue2: %v", res, test.result, test.rv1, test.rv2)
-				return
 			}
 		})
 	}
@@ -257,7 +243,6 @@ func TestValue_Compare(t *testing.T) {
 			res := test.rv1.Compare(test.rv2)
 			if res != test.result {
 				t.Errorf("invalid result (%v != %v)\nvalue1: %v\nvalue2: %v", res, test.result, test.rv1, test.rv2)
-				return
 			}
 		})
 	}
@@ -290,37 +275,15 @@ func TestValue_SearchAll(t *testing.T) {
 			NewExprValueString("bar"),
 		}), NewExprValueString("not found"), []Value{}, false},
 
-		{"mapFoundSingle", NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-			"foo": {
-				NewExprValueString("foo1"),
-			},
-			"bar": {
-				NewExprValueString("bar11"),
-				NewExprValueString("bar12"),
-			},
+		{"mapFound", NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+			"foo": NewExprValueString("foo1"),
+			"bar": NewExprValueString("bar1"),
 		}), NewExprValueString("foo"), []Value{
 			NewExprValueString("foo1"),
 		}, true},
-		{"mapFoundMulti", NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-			"foo": {
-				NewExprValueString("foo1"),
-			},
-			"bar": {
-				NewExprValueString("bar11"),
-				NewExprValueString("bar12"),
-			},
-		}), NewExprValueString("bar"), []Value{
-			NewExprValueString("bar11"),
-			NewExprValueString("bar12"),
-		}, true},
-		{"mapNotFound", NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-			"foo": {
-				NewExprValueString("foo1"),
-			},
-			"bar": {
-				NewExprValueString("bar11"),
-				NewExprValueString("bar12"),
-			},
+		{"mapNotFound", NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+			"foo": NewExprValueString("foo1"),
+			"bar": NewExprValueString("bar1"),
 		}), NewExprValueString("not found"), []Value{}, false},
 	}
 	for _, test := range tests {
@@ -330,10 +293,10 @@ func TestValue_SearchAll(t *testing.T) {
 			if test.found {
 				if !ok {
 					t.Errorf("key %v unexpectedly not found in value %v", test.rvKey, test.rvTest)
+					return
 				}
 				if !reflect.DeepEqual(res, test.rvRes) {
 					t.Errorf("result not equal.\nactual:   %v\nexpected: %v", res, test.rvRes)
-					return
 				}
 			} else {
 				if ok {
@@ -361,11 +324,11 @@ func TestValue_Nil(t *testing.T) {
 			NewExprValueString("value"),
 		}), false},
 		{"mapTrue", NewNilExprValue(NewCompositeTypeSignature(VTMap, NewScalarTypeSignature(VTBoolean))), true},
-		{"mapFalse", NewExprValueMap(NewScalarTypeSignature(VTString), map[string][]Value{
-			"key": {NewExprValueString("value")},
+		{"mapFalse", NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+			"key": NewExprValueString("value"),
 		}), false},
 		{"regexpTrue", NewNilExprValue(NewScalarTypeSignature(VTRegexp)), true},
-		{"regexpFalse", NewExprValueRegexpSilent("[0-9]{3}"), false},
+		{"regexpFalse", NewExprValueRegexpMust("[0-9]{3}"), false},
 		{"stringTrue", NewNilExprValue(NewScalarTypeSignature(VTString)), true},
 		{"stringFalse", NewExprValueString("s"), false},
 	}
@@ -373,7 +336,138 @@ func TestValue_Nil(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if test.rv.Nil() != test.isNil {
 				t.Errorf("unexpected result (%t != %t)", test.rv.Nil(), test.isNil)
+			}
+		})
+	}
+}
+
+func TestNewExprValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		ts    TypeSignature
+		value interface{}
+		ev    Value
+	}{
+		{"boolean/true", NewScalarTypeSignature(VTBoolean), true, NewExprValueBoolean(true)},
+		{"boolean/false", NewScalarTypeSignature(VTBoolean), false, NewExprValueBoolean(false)},
+		{"integer/int", NewScalarTypeSignature(VTInteger), 5, NewExprValueInteger(5)},
+		{"integer/int8", NewScalarTypeSignature(VTInteger), int8(5), NewExprValueInteger(5)},
+		{"integer/int16", NewScalarTypeSignature(VTInteger), int16(5), NewExprValueInteger(5)},
+		{"integer/int32", NewScalarTypeSignature(VTInteger), int32(5), NewExprValueInteger(5)},
+		{"integer/int64", NewScalarTypeSignature(VTInteger), int64(5), NewExprValueInteger(5)},
+		{"integer/uint", NewScalarTypeSignature(VTInteger), uint(5), NewExprValueInteger(5)},
+		{"integer/uint8", NewScalarTypeSignature(VTInteger), uint8(5), NewExprValueInteger(5)},
+		{"integer/uint16", NewScalarTypeSignature(VTInteger), uint16(5), NewExprValueInteger(5)},
+		{"integer/uint32", NewScalarTypeSignature(VTInteger), uint32(5), NewExprValueInteger(5)},
+		{"integer/uint64", NewScalarTypeSignature(VTInteger), uint64(5), NewExprValueInteger(5)},
+		{"list", NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)),
+			[]Value{NewExprValueMust(NewScalarTypeSignature(VTString), "v1")},
+			NewExprValueMust(NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)),
+				[]Value{NewExprValueMust(NewScalarTypeSignature(VTString), "v1")})},
+		{"map", NewCompositeTypeSignature(VTMap, NewScalarTypeSignature(VTString)),
+			map[string]Value{"k1": NewExprValueMust(NewScalarTypeSignature(VTString), "v1")},
+			NewExprValueMust(NewCompositeTypeSignature(VTMap, NewScalarTypeSignature(VTString)),
+				map[string]Value{"k1": NewExprValueMust(NewScalarTypeSignature(VTString), "v1")})},
+		{"regexp", NewScalarTypeSignature(VTRegexp), "[0-9]{3}", NewExprValueRegexpMust("[0-9]{3}")},
+		{"string", NewScalarTypeSignature(VTString), "a string", NewExprValueString("a string")},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ev, err := NewExprValue(test.ts, test.value)
+			if err != nil {
+				t.Errorf("unexpected error %v", err)
 				return
+			}
+			if !ev.Equal(test.ev) {
+				t.Errorf("unexpected created value (%v != %v)", ev, test.value)
+			}
+		})
+	}
+}
+
+func TestNewExprValueError(t *testing.T) {
+	tests := []struct {
+		name  string
+		ts    TypeSignature
+		value interface{}
+	}{
+		{"boolean", NewScalarTypeSignature(VTString), true},
+		{"integer/int", NewScalarTypeSignature(VTString), 5},
+		{"integer/int8", NewScalarTypeSignature(VTString), int8(5)},
+		{"integer/int16", NewScalarTypeSignature(VTString), int16(5)},
+		{"integer/int32", NewScalarTypeSignature(VTString), int32(5)},
+		{"integer/int64", NewScalarTypeSignature(VTString), int64(5)},
+		{"integer/uint", NewScalarTypeSignature(VTString), uint(5)},
+		{"integer/uint8", NewScalarTypeSignature(VTString), uint8(5)},
+		{"integer/uint16", NewScalarTypeSignature(VTString), uint16(5)},
+		{"integer/uint32", NewScalarTypeSignature(VTString), uint32(5)},
+		{"integer/uint64", NewScalarTypeSignature(VTString), uint64(5)},
+		{"list", NewCompositeTypeSignature(VTMap, NewScalarTypeSignature(VTString)),
+			[]Value{NewExprValueMust(NewScalarTypeSignature(VTString), "v1")}},
+		{"map", NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)),
+			map[string]Value{"k1": NewExprValueMust(NewScalarTypeSignature(VTString), "v1")}},
+		{"regexp", NewScalarTypeSignature(VTInteger), "[0-9]{3}"},
+		{"string", NewScalarTypeSignature(VTInteger), "a string"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ev, err := NewExprValue(test.ts, test.value)
+			if err == nil {
+				t.Errorf("expected error %v", err)
+			}
+			if !ev.Equal(EvNil) {
+				t.Errorf("expected EvNil: %v", ev)
+			}
+		})
+	}
+}
+
+func TestNewExprValueMustPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic")
+		}
+	}()
+
+	NewExprValueMust(NewScalarTypeSignature(VTString), 5)
+}
+
+func TestNewExprValueFromInterface(t *testing.T) {
+	tests := []struct {
+		name  string
+		value interface{}
+		ev    Value
+	}{
+		{"boolean/true", true, NewExprValueBoolean(true)},
+		{"boolean/false", false, NewExprValueBoolean(false)},
+		{"integer/int", 5, NewExprValueInteger(5)},
+		{"integer/int8", int8(5), NewExprValueInteger(5)},
+		{"integer/int16", int16(5), NewExprValueInteger(5)},
+		{"integer/int32", int32(5), NewExprValueInteger(5)},
+		{"integer/int64", int64(5), NewExprValueInteger(5)},
+		{"integer/uint", uint(5), NewExprValueInteger(5)},
+		{"integer/uint8", uint8(5), NewExprValueInteger(5)},
+		{"integer/uint16", uint16(5), NewExprValueInteger(5)},
+		{"integer/uint32", uint32(5), NewExprValueInteger(5)},
+		{"integer/uint64", uint64(5), NewExprValueInteger(5)},
+		{"list", []interface{}{"v1"},
+			NewExprValueList(NewScalarTypeSignature(VTString),
+				[]Value{NewExprValueMust(NewScalarTypeSignature(VTString), "v1")})},
+		{"map", map[string]interface{}{"k1": "v1"},
+			NewExprValueMap(NewScalarTypeSignature(VTString),
+				map[string]Value{"k1": NewExprValueMust(NewScalarTypeSignature(VTString), "v1")})},
+		{"nil", nil, EvNil},
+		{"string", "a string", NewExprValueString("a string")},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ev, err := NewExprValueFromInterface(test.value)
+			if err != nil {
+				t.Errorf("unexpected error %v", err)
+				return
+			}
+			if !ev.Equal(test.ev) {
+				t.Errorf("unexpected created value (%v != %v)", ev, test.value)
 			}
 		})
 	}
@@ -381,41 +475,61 @@ func TestValue_Nil(t *testing.T) {
 
 func TestNewExprValueFromString(t *testing.T) {
 	tests := []struct {
-		name  string
-		ts    TypeSignature
-		vs    string
-		ok    bool
-		value Value
+		name string
+		ts   TypeSignature
+		str  string
+		ev   Value
 	}{
-		{"boolean/true", NewScalarTypeSignature(VTBoolean), "true", true, NewExprValueBoolean(true)},
-		{"boolean/false", NewScalarTypeSignature(VTBoolean), "false", true, NewExprValueBoolean(false)},
-		{"boolean/error", NewScalarTypeSignature(VTBoolean), "not boolean", false, NewNilExprValue(NewScalarTypeSignature(VTBoolean))},
-		{"integer/ok", NewScalarTypeSignature(VTInteger), "5", true, NewExprValueInteger(5)},
-		{"integer/error", NewScalarTypeSignature(VTInteger), "not integer", false, NewNilExprValue(NewScalarTypeSignature(VTInteger))},
-		{"list/error", NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), "list", false,
-			NewNilExprValue(NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)))},
-		{"map/error", NewCompositeTypeSignature(VTMap, NewScalarTypeSignature(VTString)), "map", false,
-			NewNilExprValue(NewCompositeTypeSignature(VTMap, NewScalarTypeSignature(VTString)))},
-		{"regexp/ok", NewScalarTypeSignature(VTRegexp), "[0-9]{3}", true, NewExprValueRegexpSilent("[0-9]{3}")},
-		{"regexp/error", NewScalarTypeSignature(VTRegexp), "[invalid regexp}", false, NewNilExprValue(NewScalarTypeSignature(VTRegexp))},
-		{"string/ok", NewScalarTypeSignature(VTString), "a string", true, NewExprValueString("a string")},
+		{"boolean/true", NewScalarTypeSignature(VTBoolean), "true", NewExprValueBoolean(true)},
+		{"boolean/false", NewScalarTypeSignature(VTBoolean), "false", NewExprValueBoolean(false)},
+		{"integer", NewScalarTypeSignature(VTInteger), "5", NewExprValueInteger(5)},
+		// List not supported
+		// Map not supported
+		{"nil", TsNil, "nil", EvNil},
+		{"regexp", NewScalarTypeSignature(VTRegexp), "[0-9]{3}", NewExprValueRegexpMust("[0-9]{3}")},
+		{"string", NewScalarTypeSignature(VTString), "a string", NewExprValueString("a string")},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			value, err := NewExprValueFromString(test.ts, test.vs)
-			if !test.ok {
-				if err == nil {
-					t.Errorf("expected error")
-				}
-				return
-			}
+			value, err := NewExprValueFromString(test.ts, test.str)
 			if err != nil {
 				t.Errorf("unexpected error %v", err)
 				return
 			}
-			if !value.Equal(test.value) {
-				t.Errorf("unexpected created value (%v != %v)", value, test.value)
+			if !value.Equal(test.ev) {
+				t.Errorf("unexpected created value (%v != %v)", value, test.ev)
+			}
+		})
+	}
+}
+
+func TestNewExprValueFromStringError(t *testing.T) {
+	tests := []struct {
+		name string
+		ts   TypeSignature
+		str  string
+		ev   Value
+	}{
+		{"boolean", NewScalarTypeSignature(VTBoolean), "not a boolean", NewNilExprValue(NewScalarTypeSignature(VTBoolean))},
+		{"integer", NewScalarTypeSignature(VTInteger), "not an integer", NewNilExprValue(NewScalarTypeSignature(VTInteger))},
+		{"list", NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), "list unsupported",
+			NewNilExprValue(NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)))},
+		{"map", NewCompositeTypeSignature(VTMap, NewScalarTypeSignature(VTString)), "map unsupported",
+			NewNilExprValue(NewCompositeTypeSignature(VTMap, NewScalarTypeSignature(VTString)))},
+		// A nil expression value may always be created
+		{"regexp", NewScalarTypeSignature(VTRegexp), "[invalid regexp}",
+			NewNilExprValue(NewScalarTypeSignature(VTRegexp))},
+		// An expression string may always be created from a go string
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			value, err := NewExprValueFromString(test.ts, test.str)
+			if err == nil {
+				t.Errorf("expected error")
 				return
+			}
+			if !value.Equal(test.ev) {
+				t.Errorf("expected nil expression value: %v", value)
 			}
 		})
 	}
@@ -430,7 +544,7 @@ func TestConstantRelValues(t *testing.T) {
 		{"RvBooleanFalse", EvBooleanFalse, NewExprValueBoolean(false)},
 		{"RvBooleanTrue", EvBooleanTrue, NewExprValueBoolean(true)},
 		{"RvStringEmpty", EvStringEmpty, NewExprValueString("")},
-		{"EvNil", EvNil, NewNilExprValue(NewScalarTypeSignature(VTBoolean))},
+		{"EvNil", EvNil, NewNilExprValue(TsNil)},
 		{"EvNilBoolean", EvNilBoolean, NewNilExprValue(NewScalarTypeSignature(VTBoolean))},
 		{"EvNilInteger", EvNilInteger, NewNilExprValue(NewScalarTypeSignature(VTInteger))},
 		{"EvNilRegexp", EvNilRegexp, NewNilExprValue(NewScalarTypeSignature(VTRegexp))},
@@ -440,7 +554,6 @@ func TestConstantRelValues(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if !test.exp.Equal(test.crv) {
 				t.Errorf("unexpected result (%v != %v)", test.crv, test.exp)
-				return
 			}
 		})
 	}
@@ -543,7 +656,6 @@ func TestTypeSignature_Empty(t *testing.T) {
 			res := test.rv.Empty()
 			if res != test.res {
 				t.Errorf("unexpected result (%t != %t)", res, test.res)
-				return
 			}
 		})
 	}

@@ -8,6 +8,10 @@ import (
 	"strconv"
 )
 
+// Common constant type signatures
+var TsNil TypeSignature
+var TsDefault TypeSignature
+
 // Common constant expression values
 var EvBooleanTrue Value
 var EvBooleanFalse Value
@@ -19,17 +23,17 @@ var EvNilRegexp Value
 var EvNilString Value
 
 func init() {
+	TsNil = NewScalarTypeSignature(VTNil)
+	// If we don't have information about the type signature we assume a scalar string.
+	TsDefault = NewScalarTypeSignature(VTString)
 	EvBooleanTrue = NewExprValueBoolean(true)
 	EvBooleanFalse = NewExprValueBoolean(false)
 	EvStringEmpty = NewExprValueString("")
-	// We use a boolean nil value as our standard nil value when we don't know the type to instantiate.
-	// This is typically the case when we have to return a expression value in an error case and where the
-	// value itself is of no use.
-	EvNil = NewNilExprValue(NewScalarTypeSignature(VTBoolean))
 	EvNilBoolean = NewNilExprValue(NewScalarTypeSignature(VTBoolean))
 	EvNilInteger = NewNilExprValue(NewScalarTypeSignature(VTInteger))
 	EvNilRegexp = NewNilExprValue(NewScalarTypeSignature(VTRegexp))
 	EvNilString = NewNilExprValue(NewScalarTypeSignature(VTString))
+	EvNil = NewNilExprValue(TsNil)
 }
 
 // Typed value. The supported value type are represented as follows.
@@ -44,7 +48,7 @@ func init() {
 //   value = []Value
 // Map
 //   type = map/<type of map values>
-//   value = map[string][]Value
+//   value = map[string]Value
 // Regexp
 //   type = regexp
 //   value = regexp definition (string)
@@ -99,8 +103,8 @@ func (ev Value) Equal(ev2 Value) bool {
 		}
 		return true
 	case VTMap:
-		m1 := ev.Value.(map[string][]Value)
-		m2 := ev2.Value.(map[string][]Value)
+		m1 := ev.Value.(map[string]Value)
+		m2 := ev2.Value.(map[string]Value)
 		if len(m1) != len(m2) {
 			return false
 		}
@@ -110,14 +114,8 @@ func (ev Value) Equal(ev2 Value) bool {
 			if !ok {
 				return false
 			}
-			// Check each corresponding map entry value
-			if len(v1) != len(v2) {
+			if !v1.Equal(v2) {
 				return false
-			}
-			for i := 0; i < len(v1); i++ {
-				if !v1[i].Equal(v2[i]) {
-					return false
-				}
 			}
 		}
 		return true
@@ -182,9 +180,9 @@ func (ev Value) SearchAll(key Value) ([]Value, bool) {
 		}
 		return res, len(res) > 0
 	case VTMap:
-		m := ev.Value.(map[string][]Value)
-		valueList, ok := m[key.NaturalStringValue()]
-		return valueList, ok
+		m := ev.Value.(map[string]Value)
+		v, ok := m[key.NaturalStringValue()]
+		return []Value{v}, ok
 	default:
 		panic(fmt.Sprintf("value type %v is not searchable", ev.Type.BaseType))
 	}
@@ -201,8 +199,8 @@ func (ev Value) Reference(key interface{}) Value {
 	case VTMap:
 		// We only support string based map keys
 		keyS := key.(string)
-		v := ev.Value.(map[string]Value)
-		return v[keyS]
+		m := ev.Value.(map[string]Value)
+		return m[keyS]
 	default:
 		panic(fmt.Sprintf("value type %v is not referable", ev.Type.BaseType))
 	}
@@ -245,12 +243,12 @@ func (ev *Value) UnmarshalJSON(data []byte) error {
 		}
 		ev.Value = list
 	case VTMap:
-		var multiMap map[string][]Value
-		err := json.Unmarshal(ev1.Value, &multiMap)
+		var m map[string]Value
+		err := json.Unmarshal(ev1.Value, &m)
 		if err != nil {
 			return err
 		}
-		ev.Value = multiMap
+		ev.Value = m
 	case VTRegexp:
 		var v string
 		err := json.Unmarshal(ev1.Value, &v)
@@ -276,19 +274,130 @@ func (ev *Value) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// NewExprValue creates a RelValue from a type signature and a go value. The go value to be used is depending of the type signature.
+// NewExprValue creates a new expression value from a type signature and a go value. The created expression value
+// is depending of the type signature. Note that the go value must match the specified type signature otherwise an
+// error is returned.
 // VTBoolean => bool
-// VTInteger => int
-// VTList => a slice of REL values where the type signature unit type specifies the type of the values.
-// VTMap => a map with string keys and where the type signature sub type specifies the type for the values.
+// VTInteger => int (including intX and uintX)
+// VTList => []Value - a slice of expression values where the type signature unit type specifies the type of the values.
+// VTMap => map[string]Value - a map with string keys and where the type signature sub type specifies the type for the values.
 // VTNil => nil
-// VTRegexp => a string representing a valid go regular expression including a pre-compiled regexp.
+// VTRegexp => string - a string representing a valid go regular expression including a pre-compiled regexp.
 // VTString => string
-// VTStruct => a slice of REL values contained in the struct. Note that the sub-values may be of different types.
-func NewExprValue(ts TypeSignature, value interface{}) Value {
-	return Value{
-		Type:  ts,
-		Value: value,
+func NewExprValue(ts TypeSignature, value interface{}) (Value, error) {
+	if value == nil {
+		return EvNil, nil
+	}
+	switch v := value.(type) {
+	case bool:
+		if !ts.IsValueType(VTBoolean) {
+			return EvNil, fmt.Errorf("value %v is not a boolean", value)
+		}
+		return NewExprValueBoolean(v), nil
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		if !ts.IsValueType(VTInteger) {
+			return EvNil, fmt.Errorf("value %v is not an integer", value)
+		}
+		return NewExprValueInteger(utils.NewIntMust(v)), nil
+	case []Value:
+		if !ts.IsValueType(VTList) {
+			return EvNil, fmt.Errorf("value %v is not a list", value)
+		}
+		return NewExprValueList(*ts.UnitType, v), nil
+	case map[string]Value:
+		if !ts.IsValueType(VTMap) {
+			return EvNil, fmt.Errorf("value %v is not a map", value)
+		}
+		return NewExprValueMap(*ts.UnitType, v), nil
+	case string:
+		switch ts.BaseType {
+		case VTRegexp:
+			re, err := NewExprValueRegexp(v)
+			if err != nil {
+				return EvNil, fmt.Errorf("error creating regexp from string %s: %v", v, err)
+			}
+			return re, nil
+		case VTString:
+			return NewExprValueString(v), nil
+		default:
+			return EvNil, fmt.Errorf("invalid type signature %v for string value %s", ts, v)
+		}
+	default:
+		return EvNil, fmt.Errorf("unexpected type of value %v", value)
+	}
+}
+
+// NewExprValueMust creates a new expression value from a type signature and a go value. The same rules as for NewExprValue()
+// applies. If there is an error creating the expression value a panic is raised.
+func NewExprValueMust(ts TypeSignature, value interface{}) Value {
+	ev, err := NewExprValue(ts, value)
+	if err != nil {
+		panic(fmt.Sprintf("unexpected error creating expression value for type signature %v and go value %v: %v", ts, value, err))
+	}
+	return ev
+}
+
+// NewExprValueFromInterface creates a new expression value from a go value. The created expression value is
+// depending on the type of go value. If the go value type is unsupported an error is returned.
+// The supported go value types is specified in NewExprValue().
+// Note that a list must be of type []interface{}.
+// Note that a map must be of type map[string]interface{}.
+func NewExprValueFromInterface(value interface{}) (Value, error) {
+	if value == nil {
+		return EvNil, nil
+	}
+	switch v := value.(type) {
+	case bool:
+		return NewExprValue(NewScalarTypeSignature(VTBoolean), v)
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		return NewExprValue(NewScalarTypeSignature(VTInteger), v)
+	case []interface{}:
+		// Recursively create a slice of expression values from the go slice values
+		slice := make([]Value, 0)
+		var unitType TypeSignature
+		for _, subValue := range v {
+			exprValue, err := NewExprValueFromInterface(subValue)
+			if err != nil {
+				return EvNil, fmt.Errorf("error generating expression value from slice value %v: %v", subValue, err)
+			}
+			// Make sure the slice values are of the same type
+			if !unitType.Empty() && !unitType.Equal(exprValue.Type) {
+				return EvNil, fmt.Errorf("slice with different value types (%v(%v) != %v)", subValue, exprValue.Type, unitType)
+			}
+			unitType = exprValue.Type
+			slice = append(slice, exprValue)
+		}
+		// If empty slice we assume a slice of default value type
+		if unitType.Empty() {
+			unitType = TsDefault
+		}
+		return NewExprValue(NewCompositeTypeSignature(VTList, unitType), slice)
+	case map[string]interface{}: // We only support string keys
+		// Recursively create map expression values from the go map values
+		mp := make(map[string]Value)
+		var unitType TypeSignature
+		for key, subValue := range v {
+			exprValue, err := NewExprValueFromInterface(subValue)
+			if err != nil {
+				return EvNil, fmt.Errorf("error generating expression value from map value %v: %v", subValue, err)
+			}
+			// Make sure the map values are of the same type
+			if !unitType.Empty() && !unitType.Equal(exprValue.Type) {
+				return EvNil, fmt.Errorf("map with different value types (%v(%v) != %v)", subValue, exprValue.Type, unitType)
+			}
+			unitType = exprValue.Type
+			mp[key] = exprValue
+		}
+		// If empty map we assume a slice of default value type
+		if unitType.Empty() {
+			unitType = TsDefault
+		}
+		return NewExprValue(NewCompositeTypeSignature(VTMap, unitType), mp)
+	case string:
+		// As a string will be a VTString we can't create regexp
+		return NewExprValue(NewScalarTypeSignature(VTString), v)
+	default:
+		return EvNil, fmt.Errorf("can't convert go value %v to an expression value", v)
 	}
 }
 
@@ -306,6 +415,8 @@ func NewExprValueFromString(ts TypeSignature, value string) (Value, error) {
 			return NewNilExprValue(ts), err
 		}
 		return NewExprValueInteger(i), nil
+	case VTNil:
+		return EvNil, nil
 	case VTRegexp:
 		return NewExprValueRegexp(value)
 	case VTString:
@@ -335,7 +446,7 @@ func NewExprValueList(ut TypeSignature, list []Value) Value {
 	}
 }
 
-func NewExprValueMap(ut TypeSignature, EvMap map[string][]Value) Value {
+func NewExprValueMap(ut TypeSignature, EvMap map[string]Value) Value {
 	return Value{
 		Type:  NewCompositeTypeSignature(VTMap, ut),
 		Value: EvMap,
@@ -361,7 +472,7 @@ func NewExprValueRegexp(value string) (Value, error) {
 	}, nil
 }
 
-func NewExprValueRegexpSilent(value string) Value {
+func NewExprValueRegexpMust(value string) Value {
 	re, err := NewExprValueRegexp(value)
 	if err != nil {
 		panic(err)
@@ -384,6 +495,7 @@ const (
 	VTInteger ValueType = "integer"
 	VTList    ValueType = "list"
 	VTMap     ValueType = "map"
+	VTNil     ValueType = "nil"
 	VTRegexp  ValueType = "regexp"
 	VTString  ValueType = "string"
 )
@@ -393,11 +505,11 @@ const (
 func (vt ValueType) DefaultValue() (interface{}, Value, bool) {
 	switch vt {
 	case VTBoolean:
-		return false, NewExprValue(NewScalarTypeSignature(VTBoolean), false), true
+		return false, NewExprValueMust(NewScalarTypeSignature(VTBoolean), false), true
 	case VTInteger:
-		return 0, NewExprValue(NewScalarTypeSignature(VTInteger), 0), true
+		return 0, NewExprValueMust(NewScalarTypeSignature(VTInteger), 0), true
 	case VTString:
-		return "", NewExprValue(NewScalarTypeSignature(VTString), ""), true
+		return "", NewExprValueMust(NewScalarTypeSignature(VTString), ""), true
 	}
 	return nil, Value{}, false
 }
