@@ -109,7 +109,10 @@ func (op *opAssign) Evaluate(recCtx RequestContext) (Value, error) {
 	}
 	switch op.source {
 	case RSHeap:
-		recCtx.Assign(op.key, value)
+		err := recCtx.Assign(op.key, value)
+		if err != nil {
+			return op.nilResult(), err
+		}
 	case RSValue:
 		// The source of the reference is a referable value. Currently struct is supported
 		source, err := op.sourceOp.Evaluate(recCtx)
@@ -254,7 +257,10 @@ func (op *opFor) Evaluate(recCtx RequestContext) (Value, error) {
 	var res Value
 	// The compiler should have checked that the list is a list.
 	for _, value := range list.Value.([]Value) {
-		recCtx.Assign(op.key, value)
+		err := recCtx.Assign(op.key, value)
+		if err != nil {
+			return op.nilResult(), err
+		}
 		res, err = op.opLoop.Evaluate(recCtx)
 		if err != nil {
 			return op.nilResult(), err
@@ -398,7 +404,7 @@ func (op *opReference) Evaluate(recCtx RequestContext) (Value, error) {
 	switch op.source {
 	case RSHeap:
 		// The source of the reference is the request context heap
-		return recCtx.Reference(op.key, op.resType), nil
+		return recCtx.Reference(op.key, op.resType)
 	case RSValue:
 		// The source of the reference is a referable value. Currently struct is supported.
 		source, err := op.sourceOp.Evaluate(recCtx)

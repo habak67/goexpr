@@ -509,7 +509,11 @@ func TestEvaluate_OpAssign_Heap(t *testing.T) {
 		t.Errorf("wrong evaluation result.\nactual:   %v\nexprected: %v", res, newValue)
 		return
 	}
-	actual := reqCtx.Reference(key, op.resType)
+	actual, err := reqCtx.Reference(key, op.resType)
+	if err != nil {
+		t.Errorf("unexprected reference error: %v", err)
+		return
+	}
 	if actual != newValue {
 		t.Errorf("wrong request context reference heap (key %s).\nactual:   %v\nexprected: %v", key, actual, newValue)
 		return
@@ -532,7 +536,11 @@ func TestEvaluate_OpAssign_HeapNil(t *testing.T) {
 		t.Errorf("wrong evaluation result.\nactual:   %v\nexprected: %v", res, newValue)
 		return
 	}
-	actual := reqCtx.Reference(key, op.resType)
+	actual, err := reqCtx.Reference(key, op.resType)
+	if err != nil {
+		t.Errorf("unexprected reference error: %v", err)
+		return
+	}
 	if actual != newValue {
 		t.Errorf("wrong request context reference heap (key %s).\nactual:   %v\nexprected: %v", key, actual, newValue)
 		return
@@ -547,7 +555,11 @@ func TestEvaluate_OpReference_Heap(t *testing.T) {
 	// Non nil value found
 	key := "k1"
 	value := NewExprValueString("value")
-	reqCtx.Assign(key, value)
+	err := reqCtx.Assign(key, value)
+	if err != nil {
+		t.Errorf("unexprected assignment error: %v", err)
+		return
+	}
 
 	op := newTestOpReference("ref1", key, nil, RSHeap, NewScalarTypeSignature(VTString))
 	res, err := op.Evaluate(reqCtx)
@@ -563,7 +575,11 @@ func TestEvaluate_OpReference_Heap(t *testing.T) {
 	// Nil value found
 	key = "k2"
 	value = NewNilExprValue(NewScalarTypeSignature(VTString))
-	reqCtx.Assign(key, value)
+	err = reqCtx.Assign(key, value)
+	if err != nil {
+		t.Errorf("unexprected assignment error: %v", err)
+		return
+	}
 
 	op = newTestOpReference("ref1", key, nil, RSHeap, NewScalarTypeSignature(VTString))
 	res, err = op.Evaluate(reqCtx)
