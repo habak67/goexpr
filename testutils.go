@@ -3,7 +3,8 @@ package goexpr
 import "fmt"
 
 type testRequestContext struct {
-	Values map[string]Value
+	// We store all values as strings
+	Values map[string]string
 }
 
 func (rc testRequestContext) Reference(key interface{}, ts TypeSignature) (Value, error) {
@@ -12,9 +13,13 @@ func (rc testRequestContext) Reference(key interface{}, ts TypeSignature) (Value
 	if !ok {
 		return NewNilExprValue(ts), fmt.Errorf("key %v is not a string", key)
 	}
-	v, found := rc.Values[keyS]
+	vS, found := rc.Values[keyS]
 	if !found {
 		return NewNilExprValue(ts), nil
+	}
+	v, err := NewExprValueFromString(ts, vS)
+	if err != nil {
+		return NewNilExprValue(ts), fmt.Errorf("can't convert value %v to type %v: %v", v, ts, err)
 	}
 	return v, nil
 }
@@ -25,15 +30,19 @@ func (rc testRequestContext) Assign(key interface{}, value Value) error {
 	if !ok {
 		return fmt.Errorf("key %v is not a string", key)
 	}
-	rc.Values[keyS] = value
+	if value.Nil() {
+		// We treat nil value as "no value"
+		return nil
+	}
+	rc.Values[keyS] = value.NaturalStringValue()
 	return nil
 }
 
 func newEmptyTestRequestContext() RequestContext {
-	values := make(map[string]Value, 0)
+	values := make(map[string]string, 0)
 	return newTestRequestContext(values)
 }
 
-func newTestRequestContext(values map[string]Value) RequestContext {
+func newTestRequestContext(values map[string]string) RequestContext {
 	return testRequestContext{Values: values}
 }

@@ -54,8 +54,10 @@ type Expression interface {
 	Col() int
 	// ResultType returns the result type of the Expression
 	ResultType() TypeSignature
-	// nilResult returns a nil value of the value type of the Expression result type
-	nilResult() Value
+	// ExpectedResultType returns true if the expression has the specified result type.
+	// The difference between using ResultType() is that some "dynamically typed" expressions (e.g. reference)
+	// may adapt to the expected result type.
+	ExpectedResultType(rt TypeSignature) bool
 }
 
 func newBaseExpression(rt TypeSignature, line, col int) baseExpression {
@@ -83,6 +85,10 @@ func (bo baseExpression) Col() int {
 
 func (bo baseExpression) ResultType() TypeSignature {
 	return bo.resType
+}
+
+func (bo baseExpression) ExpectedResultType(rt TypeSignature) bool {
+	return bo.ResultType().Equal(rt)
 }
 
 func (bo baseExpression) nilResult() Value {
@@ -493,7 +499,7 @@ func (op *exprReference) Evaluate(recCtx RequestContext) (Value, error) {
 	switch op.source {
 	case RSHeap:
 		// The source of the reference is the request context heap
-		return recCtx.Reference(op.key, op.resType)
+		return recCtx.Reference(op.key, op.ResultType())
 	case RSValue:
 		// The source of the reference is a referable value. Currently struct is supported.
 		source, err := op.sourceOp.Evaluate(recCtx)
@@ -509,9 +515,22 @@ func (op *exprReference) Evaluate(recCtx RequestContext) (Value, error) {
 	}
 }
 
-func NewExprReference(name string, key interface{}, sourceOp Expression, source ReferenceSource, resType TypeSignature, line, col int) Expression {
+func (op *exprReference) ExpectedResultType(rt TypeSignature) bool {
+	if op.ResultType().Equal(rt) {
+		return true
+	}
+	if rt.Scalar() {
+		// A reference may be transformed to a scalar type (other than the current result type)
+		op.resType = rt
+		return true
+	}
+	return false
+}
+
+func NewExprReference(name string, key interface{}, sourceOp Expression, source ReferenceSource, line, col int) Expression {
 	return &exprReference{
-		baseExpression: newBaseExpression(resType, line, col),
+		// As default a reference returns a string
+		baseExpression: newBaseExpression(NewScalarTypeSignature(VTString), line, col),
 		name:           name,
 		key:            key,
 		sourceOp:       sourceOp,

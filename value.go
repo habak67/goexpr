@@ -151,6 +151,10 @@ func (ev Value) Compare(Ev2 Value) Value {
 // string representation.
 // If the value type has no natural string representation a panic is raised.
 func (ev Value) NaturalStringValue() string {
+	// Nil is always converted to a blank string
+	if ev.Nil() {
+		return "<<nil>>"
+	}
 	switch ev.Type.BaseType {
 	case VTBoolean:
 		return strconv.FormatBool(ev.Value.(bool))
@@ -286,7 +290,7 @@ func (ev *Value) UnmarshalJSON(data []byte) error {
 // VTString => string
 func NewExprValue(ts TypeSignature, value interface{}) (Value, error) {
 	if value == nil {
-		return EvNil, nil
+		return NewNilExprValue(ts), nil
 	}
 	switch v := value.(type) {
 	case bool:
@@ -532,6 +536,8 @@ type ValueTypeMetadata map[ValueType]struct {
 	iterable bool
 	// May you use the type as a value in an iteration (e.g. as the value for a foreach loop variable)
 	iterationValue bool
+	// Is the type a scalar type
+	scalar bool
 }
 
 // ValidValueType checks if the specified value type is a known value type
@@ -570,23 +576,34 @@ func (v ValueTypeMetadata) Reference(vt ValueType) bool {
 	return v[vt].stringable
 }
 
-// Iterable returns true if if the type is itereable (you may iterate over it using e.g. a foreach loop)
+// Iterable returns true if the type is itereable (you may iterate over it using e.g. a foreach loop)
 func (v ValueTypeMetadata) Iterable(vt ValueType) bool {
 	return v[vt].iterable
 }
 
-// IterationValue returns true if if you may use the type as a value in an iteration (e.g. a foreach loop)
+// IterationValue returns true if you may use the type as a value in an iteration (e.g. a foreach loop)
 func (v ValueTypeMetadata) IterationValue(vt ValueType) bool {
 	return v[vt].iterationValue
 }
 
+// Scalar returns true if the type is a scalar type
+func (v ValueTypeMetadata) Scalar(vt ValueType) bool {
+	return v[vt].iterationValue
+}
+
 var VTMetadata = ValueTypeMetadata{
-	VTBoolean: {true, false, false, true, false, false, false, true},
-	VTInteger: {true, true, false, true, false, false, false, true},
-	VTList:    {true, false, true, false, false, false, true, false},
-	VTMap:     {true, false, true, false, false, false, false, false},
-	VTRegexp:  {true, false, false, true, false, false, false, true},
-	VTString:  {true, false, false, true, false, false, false, true},
+	VTBoolean: {true, false, false, true, false, false, false,
+		true, true},
+	VTInteger: {true, true, false, true, false, false, false,
+		true, true},
+	VTList: {true, false, true, false, false, false, true,
+		false, false},
+	VTMap: {true, false, true, false, false, false, false,
+		false, false},
+	VTRegexp: {true, false, false, true, false, false, false,
+		true, true},
+	VTString: {true, false, false, true, false, false, false,
+		true, true},
 }
 
 // TypeSignature holds type information for a typed value
@@ -627,6 +644,10 @@ func (ts TypeSignature) Equal(ts2 TypeSignature) bool {
 		return ts.UnitType.Equal(*ts2.UnitType)
 	}
 	return true
+}
+
+func (ts TypeSignature) Scalar() bool {
+	return VTMetadata.Scalar(ts.BaseType)
 }
 
 // NewScalarTypeSignature creates a type signature for a scalar value type

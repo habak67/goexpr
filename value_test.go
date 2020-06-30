@@ -248,6 +248,42 @@ func TestValue_Compare(t *testing.T) {
 	}
 }
 
+func TestValue_NaturalStringValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		value Value
+		pnic  bool
+		str   string
+	}{
+		{"nil", EvNil, false, "<<nil>>"},
+		{"boolean", NewExprValueBoolean(true), false, "true"},
+		{"integer", NewExprValueInteger(5), false, "5"},
+		{"list", NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+			NewExprValueString("value1"), NewExprValueString("value2")}), true, ""},
+		{"map", NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+			"key1": NewExprValueString("value1"),
+			"key2": NewExprValueString("value2")}), true, ""},
+		{"regexp", NewExprValueRegexpMust("[0-9]{3}"), false, "[0-9]{3}"},
+		{"string", NewExprValueString("value"), false, "value"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			defer func() {
+				rec := recover()
+				if rec != nil {
+					if !test.pnic {
+						t.Errorf("unexpected panic: %v", rec)
+					}
+				}
+			}()
+			res := test.value.NaturalStringValue()
+			if res != test.str {
+				t.Errorf("invalid result (%v != %v)", res, test.str)
+			}
+		})
+	}
+}
+
 func TestValue_SearchAll(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -535,6 +571,31 @@ func TestNewExprValueFromStringError(t *testing.T) {
 	}
 }
 
+func TestNewNilExprValue(t *testing.T) {
+	tests := []struct {
+		name string
+		ts   TypeSignature
+	}{
+		{"boolean", NewScalarTypeSignature(VTBoolean)},
+		{"integer", NewScalarTypeSignature(VTInteger)},
+		{"list", NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString))},
+		{"map", NewCompositeTypeSignature(VTMap, NewScalarTypeSignature(VTString))},
+		{"regexp", NewScalarTypeSignature(VTRegexp)},
+		{"string", NewScalarTypeSignature(VTString)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			value := NewNilExprValue(test.ts)
+			if !value.Nil() {
+				t.Errorf("expected nil value. Got %v", value)
+			}
+			if !value.Type.Equal(test.ts) {
+				t.Errorf("wrong nil value type (%v != %v)", value.Type, test.ts)
+			}
+		})
+	}
+}
+
 func TestConstantRelValues(t *testing.T) {
 	tests := []struct {
 		name string
@@ -636,6 +697,28 @@ func TestTypeSignature_Equal(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if test.ts1.Equal(test.ts2) != test.res {
 				t.Errorf("wrong result for %v equal %v\nactual:   %v\nexpected: %v", test.ts1, test.ts2, test.ts1.Equal(test.ts2), test.res)
+			}
+		})
+	}
+}
+
+func TestTypeSignature_Scalar(t *testing.T) {
+	tests := []struct {
+		name   string
+		ts     TypeSignature
+		scalar bool
+	}{
+		{"boolean", NewScalarTypeSignature(VTBoolean), true},
+		{"integer", NewScalarTypeSignature(VTInteger), true},
+		{"list", NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), false},
+		{"map", NewCompositeTypeSignature(VTMap, NewScalarTypeSignature(VTString)), false},
+		{"string", NewScalarTypeSignature(VTRegexp), true},
+		{"string", NewScalarTypeSignature(VTString), true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if !test.ts.Scalar() == test.scalar {
+				t.Errorf("wrong scalar result (%v != %v", test.ts.Scalar(), test.scalar)
 			}
 		})
 	}
