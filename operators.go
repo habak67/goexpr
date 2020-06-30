@@ -12,7 +12,7 @@ const (
 	RSValue ReferenceSource = "value"
 )
 
-// Compare operator type
+// Compare Expression type
 type CompareType string
 
 const (
@@ -25,7 +25,7 @@ const (
 	CTMatch        CompareType = "match"
 )
 
-// Logical operator type
+// Logical Expression type
 type LogicalType string
 
 const (
@@ -34,7 +34,7 @@ const (
 	LTNot LogicalType = "not"
 )
 
-// Search operator type
+// Search Expression type
 type SearchType string
 
 const (
@@ -43,66 +43,75 @@ const (
 	STFindAll SearchType = "findAll"
 )
 
-type baseOperator struct {
-	line int
-	col  int
-	// Result type of the operator
-	resType TypeSignature
-}
-
-func (bo baseOperator) Line() int {
-	return bo.line
-}
-
-func (bo baseOperator) Col() int {
-	return bo.col
-}
-
-func (bo baseOperator) ResType() TypeSignature {
-	return bo.resType
-}
-
-func (bo baseOperator) nilResult() Value {
-	return NewNilExprValue(bo.resType)
-}
-
-// operator represent a specific expression that calculates a result value from a set of sub-expressions.
-type operator interface {
-	// An operator is an expression
-	Expression
-	// Line returns the source line number in the rule specification for the start of the operator definition
+// Expression represent a specific expression that calculates a result value from a set of sub-expressions.
+type Expression interface {
+	// Evaluate evaluates the expression using the specified request context. The value from the evaluation is returned.
+	// If there was an error in the evaluation the error is returned.
+	Evaluate(reqContext RequestContext) (Value, error)
+	// Line returns the source line number in the rule specification for the start of the Expression definition
 	Line() int
-	// Col returns the source column number in the rule specification for the start of the operator definition
+	// Col returns the source column number in the rule specification for the start of the Expression definition
 	Col() int
-	// ResType returns the result type of the operator
-	ResType() TypeSignature
-	// nilResult returns a nil value of the value type of the operator result type
+	// ResultType returns the result type of the Expression
+	ResultType() TypeSignature
+	// nilResult returns a nil value of the value type of the Expression result type
 	nilResult() Value
 }
 
-// opAssign assigns a value to a reference in the request context reference heap or a referable value (struct).
-// The result of the operator is the value assigned (including nil).
+func newBaseExpression(rt TypeSignature, line, col int) baseExpression {
+	return baseExpression{
+		line:    line,
+		col:     col,
+		resType: rt,
+	}
+}
+
+type baseExpression struct {
+	line int
+	col  int
+	// Result type of the Expression
+	resType TypeSignature
+}
+
+func (bo baseExpression) Line() int {
+	return bo.line
+}
+
+func (bo baseExpression) Col() int {
+	return bo.col
+}
+
+func (bo baseExpression) ResultType() TypeSignature {
+	return bo.resType
+}
+
+func (bo baseExpression) nilResult() Value {
+	return NewNilExprValue(bo.resType)
+}
+
+// exprAssign assigns a value to a reference in the request context reference heap or a referable value (struct).
+// The result of the Expression is the value assigned (including nil).
 // Source specifies the reference type (heap or referable variable). Index is the reference index to read. If source is
-// a variable then the variable is the result of the source operator.
-// The value assigned to the reference is the result from the value operator.
-// If the result of the source operator is nil then nothing is assigned.
-// If the result of the value operator is nil then nil is assigned to the reference.
-type opAssign struct {
-	baseOperator
+// a variable then the variable is the result of the source Expression.
+// The value assigned to the reference is the result from the value Expression.
+// If the result of the source Expression is nil then nothing is assigned.
+// If the result of the value Expression is nil then nil is assigned to the reference.
+type exprAssign struct {
+	baseExpression
 	//	ruleCtx *ruleContext
 	// The name of the reference as specified in the rule definition.
 	name string
 	// The reference key
 	key interface{}
 	// The value to be written "assigned" to the reference.
-	valueOp operator
+	valueOp Expression
 	// The source for the reference operation (heap or variable).
 	source ReferenceSource
 	// If the source is "variable" the source op is used to get the variable.
-	sourceOp operator
+	sourceOp Expression
 }
 
-func (op *opAssign) Evaluate(recCtx RequestContext) (Value, error) {
+func (op *exprAssign) Evaluate(recCtx RequestContext) (Value, error) {
 	value, err := op.valueOp.Evaluate(recCtx)
 	if err != nil {
 		return op.nilResult(), err
@@ -129,22 +138,33 @@ func (op *opAssign) Evaluate(recCtx RequestContext) (Value, error) {
 	return value, nil
 }
 
-// opCompare compares the result from two sub-expressions using a specified compare operator.
-// The semantic is dependent of the compare operator and follows normal semantics for those.
+func NewExprAssign(name string, key interface{}, valueOp, sourceOp Expression, source ReferenceSource, line, col int) Expression {
+	return &exprAssign{
+		baseExpression: newBaseExpression(valueOp.ResultType(), line, col),
+		name:           name,
+		key:            key,
+		valueOp:        valueOp,
+		sourceOp:       sourceOp,
+		source:         source,
+	}
+}
+
+// exprCompare compares the result from two sub-expressions using a specified compare Expression.
+// The semantic is dependent of the compare Expression and follows normal semantics for those.
 // The result is a boolean value.
 // If one of the operands is a nil value the following applies.
 // For equal and non-equal nil == nil and nil != non-nil.
-// In other case the result is nil. That is the compare operator propagates nil.
-type opCompare struct {
-	baseOperator
+// In other case the result is nil. That is the compare Expression propagates nil.
+type exprCompare struct {
+	baseExpression
 	//	ruleCtx *ruleContext
-	// Compare operator
+	// Compare Expression
 	ct      CompareType
-	opLeft  operator
-	opRight operator
+	opLeft  Expression
+	opRight Expression
 }
 
-func (op *opCompare) Evaluate(recCtx RequestContext) (Value, error) {
+func (op *exprCompare) Evaluate(recCtx RequestContext) (Value, error) {
 	resLeft, err := op.opLeft.Evaluate(recCtx)
 	if err != nil {
 		return EvNilBoolean, err
@@ -188,56 +208,72 @@ func (op *opCompare) Evaluate(recCtx RequestContext) (Value, error) {
 		return NewExprValueBoolean(matcher.Regexp.MatchString(check.Value.(string))), nil
 	default:
 		// Should not happen...
-		panic(fmt.Sprintf("unknown compare operator type %v", op.ct))
+		panic(fmt.Sprintf("unknown compare Expression type %v", op.ct))
 	}
 }
 
-// opConstant returns a specified constant value.
-type opConstant struct {
-	baseOperator
+func NewExprCompare(ct CompareType, leftOp Expression, rightOp Expression, line, col int) Expression {
+	return &exprCompare{
+		baseExpression: newBaseExpression(NewScalarTypeSignature(VTBoolean), line, col),
+		ct:             ct,
+		opLeft:         leftOp,
+		opRight:        rightOp,
+	}
+}
+
+// exprConstant returns a specified constant value.
+type exprConstant struct {
+	baseExpression
 	//	ruleCtx *ruleContext
 	c Value
 }
 
-func (op *opConstant) Evaluate(_ RequestContext) (Value, error) {
+func (op *exprConstant) Evaluate(_ RequestContext) (Value, error) {
 	return op.c, nil
 }
 
-// opError returns an error in evaluation.
-// The operator is used in unit tests to test failure scenarios.
-type opError struct {
-	baseOperator
+func NewExprConstant(c Value, line, col int) Expression {
+	return &exprConstant{
+		baseExpression: newBaseExpression(c.Type, line, col),
+		c:              c,
+	}
+}
+
+// exprError returns an error in evaluation.
+// The Expression is used in unit tests to test failure scenarios.
+type exprError struct {
+	baseExpression
 	//	ruleCtx *ruleContext
 }
 
-func (op *opError) Evaluate(_ RequestContext) (Value, error) {
-	return NewNilExprValue(op.resType), fmt.Errorf("opError")
+func (op *exprError) Evaluate(_ RequestContext) (Value, error) {
+	return NewNilExprValue(op.resType), fmt.Errorf("exprError")
 }
 
-// opFor represent a for loop.
-// The loop operator is applied one time for every value from the result of the list operator (the result must be a list).
-// The reference specified by the heap index is set to the value in each iteration so that the loop operator may reference
+// exprFor represent a for loop.
+// The loop Expression is applied one time for every value from the result of the list Expression (the result must be a list).
+// The reference specified by the heap index is set to the value in each iteration so that the loop Expression may reference
 // the current list value.
-// The result of the for operator is the result from the last execution of the loop operator. That is the loop operator
+// The result of the for Expression is the result from the last execution of the loop Expression. That is the loop Expression
 // applied to the last value in the list. This also implies that the result type is the same as the value type of the
 // list values.
 // If a break expression is specified and the loop expression returns the same result as the break expression (if exist)
 // then break the loop and return the current return value.
-// If the list is empty or a nil list then the loop operator is never executed and nil is returned.
-type opFor struct {
-	baseOperator
+// If the list is empty or a nil list then the loop Expression is never executed and nil is returned.
+type exprFor struct {
+	baseExpression
 	//	ruleCtx *ruleContext
 	// The list of values to iterate over.
-	opList operator
-	// The operator to execute for each value in the value list.
-	opLoop operator
-	// If the result of the loop operator return the same result as the break operator then break the for loop.
-	opBreak operator
+	opList Expression
+	// The Expression to execute for each value in the value list.
+	opLoop Expression
+	// If the result of the loop Expression return the same result as the break Expression then break the for loop.
+	opBreak Expression
 	// The reference heap key where to store the current value of the value list.
 	key string
 }
 
-func (op *opFor) Evaluate(recCtx RequestContext) (Value, error) {
+func (op *exprFor) Evaluate(recCtx RequestContext) (Value, error) {
 	list, err := op.opList.Evaluate(recCtx)
 	if err != nil {
 		return op.nilResult(), err
@@ -246,7 +282,7 @@ func (op *opFor) Evaluate(recCtx RequestContext) (Value, error) {
 	if list.Nil() || len(list.Value.([]Value)) == 0 {
 		return op.nilResult(), nil
 	}
-	// Compute break value if break operator exist
+	// Compute break value if break Expression exist
 	breakValue := NewNilExprValue(*list.Type.UnitType)
 	if op.opBreak != nil {
 		breakValue, err = op.opBreak.Evaluate(recCtx)
@@ -274,23 +310,33 @@ func (op *opFor) Evaluate(recCtx RequestContext) (Value, error) {
 	return res, nil
 }
 
-// opIf represent an if expression.
-// The check operator (must be a boolean) is evaluated.
-// If the result is true then the then-operator is evaluated otherwise the else-operator is evaluated.
-// The result of the if operator is the result of the then- or else-operator (the one evaluated). This also
-// implies that the result type of the then- and else-operators must be the same.
-// If the result of the check operator is nil the neither then- nor else-operator is evaluated and the
-// result of the if operator is nil. That is the if operator propagates nil.
-type opIf struct {
-	baseOperator
-	//	ruleCtx *ruleContext
-	// The expression to check if the then or else sub-expression should be executed.
-	checkOp operator
-	thenOp  operator
-	elseOp  operator
+func NewExprFor(opList Expression, opLoop Expression, opBreak Expression, key string, line, col int) Expression {
+	return &exprFor{
+		baseExpression: newBaseExpression(*opList.ResultType().UnitType, line, col),
+		opList:         opList,
+		opLoop:         opLoop,
+		opBreak:        opBreak,
+		key:            key,
+	}
 }
 
-func (op *opIf) Evaluate(recCtx RequestContext) (Value, error) {
+// exprIf represent an if expression.
+// The check Expression (must be a boolean) is evaluated.
+// If the result is true then the then-Expression is evaluated otherwise the else-Expression is evaluated.
+// The result of the if Expression is the result of the then- or else-Expression (the one evaluated). This also
+// implies that the result type of the then- and else-operators must be the same.
+// If the result of the check Expression is nil the neither then- nor else-Expression is evaluated and the
+// result of the if Expression is nil. That is the if Expression propagates nil.
+type exprIf struct {
+	baseExpression
+	//	ruleCtx *ruleContext
+	// The expression to check if the then or else sub-expression should be executed.
+	checkOp Expression
+	thenOp  Expression
+	elseOp  Expression
+}
+
+func (op *exprIf) Evaluate(recCtx RequestContext) (Value, error) {
 	res, err := op.checkOp.Evaluate(recCtx)
 	if err != nil {
 		return op.nilResult(), err
@@ -307,7 +353,7 @@ func (op *opIf) Evaluate(recCtx RequestContext) (Value, error) {
 		}
 		return thenRes, nil
 	}
-	// If no else operator return a nil value.
+	// If no else Expression return a nil value.
 	if op.elseOp == nil {
 		return op.nilResult(), nil
 	}
@@ -318,20 +364,29 @@ func (op *opIf) Evaluate(recCtx RequestContext) (Value, error) {
 	return elseRes, nil
 }
 
-// opLogical represent a logical expression.
-// Note that lazy evaluation is used. That is if opLeft returns false for "and" then opRight will not be
-// evaluated and if opLeft evaluates to true for "or" then opRight will not be evaluated.
-// If left or right operand evaluates to nil the the result of the logical operator is nil. That is
-// nil is propagated.
-type opLogical struct {
-	baseOperator
-	//	ruleCtx *ruleContext
-	lt      LogicalType
-	opLeft  operator
-	opRight operator
+func NewExprIf(checkOp Expression, thenOp Expression, elseOp Expression, line, col int) Expression {
+	return &exprIf{
+		baseExpression: newBaseExpression(thenOp.ResultType(), line, col),
+		checkOp:        checkOp,
+		thenOp:         thenOp,
+		elseOp:         elseOp,
+	}
 }
 
-func (op *opLogical) Evaluate(recCtx RequestContext) (Value, error) {
+// exprLogical represent a logical expression.
+// Note that lazy evaluation is used. That is if opLeft returns false for "and" then opRight will not be
+// evaluated and if opLeft evaluates to true for "or" then opRight will not be evaluated.
+// If left or right operand evaluates to nil the the result of the logical Expression is nil. That is
+// nil is propagated.
+type exprLogical struct {
+	baseExpression
+	//	ruleCtx *ruleContext
+	lt      LogicalType
+	opLeft  Expression
+	opRight Expression
+}
+
+func (op *exprLogical) Evaluate(recCtx RequestContext) (Value, error) {
 	resLeft, err := op.opLeft.Evaluate(recCtx)
 	if err != nil {
 		return EvNilBoolean, err
@@ -339,7 +394,7 @@ func (op *opLogical) Evaluate(recCtx RequestContext) (Value, error) {
 	if resLeft.Nil() {
 		return op.nilResult(), nil
 	}
-	// we use "lazy evaluation" in the sense that we return as soon as we know the result of the logical operator
+	// we use "lazy evaluation" in the sense that we return as soon as we know the result of the logical Expression
 	switch op.lt {
 	case LTAnd:
 		if !resLeft.Value.(bool) {
@@ -377,18 +432,27 @@ func (op *opLogical) Evaluate(recCtx RequestContext) (Value, error) {
 		}
 		return EvBooleanTrue, nil
 	default:
-		panic(fmt.Sprintf("unknown logial operator type %v", op.lt))
+		panic(fmt.Sprintf("unknown logial Expression type %v", op.lt))
 	}
 }
 
-// opReference reads a reference from the request context reference heap or a referable value (struct).
-// The result of the operator is the value read.
+func NewExprLogical(lt LogicalType, leftOp Expression, rightOp Expression, line, col int) Expression {
+	return &exprLogical{
+		baseExpression: newBaseExpression(NewScalarTypeSignature(VTBoolean), line, col),
+		lt:             lt,
+		opLeft:         leftOp,
+		opRight:        rightOp,
+	}
+}
+
+// exprReference reads a reference from the request context reference heap or a referable value (struct).
+// The result of the Expression is the value read.
 // Source specifies the reference type (heap or referable variable). Index is the reference index to read. If source is
-// a variable then the variable is the result of the source operator.
-// If the result of the source operator is nil then the result of the reference operator is nil. That is the reference of
+// a variable then the variable is the result of the source Expression.
+// If the result of the source Expression is nil then the result of the reference Expression is nil. That is the reference of
 // a nil value is nil.
-type opReference struct {
-	baseOperator
+type exprReference struct {
+	baseExpression
 	//	ruleCtx *ruleContext
 	// The name of the reference as specified in the rule definition.
 	name string
@@ -397,10 +461,10 @@ type opReference struct {
 	// The source for the reference operation (heap or variable).
 	source ReferenceSource
 	// If the source is "variable" the source op is used to get the variable.
-	sourceOp operator
+	sourceOp Expression
 }
 
-func (op *opReference) Evaluate(recCtx RequestContext) (Value, error) {
+func (op *exprReference) Evaluate(recCtx RequestContext) (Value, error) {
 	switch op.source {
 	case RSHeap:
 		// The source of the reference is the request context heap
@@ -420,33 +484,43 @@ func (op *opReference) Evaluate(recCtx RequestContext) (Value, error) {
 	}
 }
 
-// opSearch applies a specified search operation on a specified searchable value. The result of the operator is specific
+func NewExprReference(name string, key interface{}, sourceOp Expression, source ReferenceSource, resType TypeSignature, line, col int) Expression {
+	return &exprReference{
+		baseExpression: newBaseExpression(resType, line, col),
+		name:           name,
+		key:            key,
+		sourceOp:       sourceOp,
+		source:         source,
+	}
+}
+
+// exprSearch applies a specified search operation on a specified searchable value. The result of the Expression is specific
 // to the search operation.
 // Exist
 //   Boolean indicating if the value to search for exist or not.
 // Find
 //   The found value.
-//   If value is not found and a default operator is specified the result of the default operator is returned.
-//   If value is not found and there is no default operator (or result is nil) then nil is returned.
+//   If value is not found and a default Expression is specified the result of the default Expression is returned.
+//   If value is not found and there is no default Expression (or result is nil) then nil is returned.
 // FindAll
 //   A list of all values found.
-//   If no values are found and a default operator is specified the result of the default operator is returned (must be a list).
-//   If no values are found and there is no default operator (or result is nil) then nil is returned.
+//   If no values are found and a default Expression is specified the result of the default Expression is returned (must be a list).
+//   If no values are found and there is no default Expression (or result is nil) then nil is returned.
 // If key or collection operators evaluates to nil then nil is returned.
-type opSearch struct {
-	baseOperator
+type exprSearch struct {
+	baseExpression
 	//	ruleCtx *ruleContext
 	// The key to search for
-	opKey operator
+	opKey Expression
 	// The collection to search in
-	opColl operator
+	opColl Expression
 	// Default value to return if key not found in collection
-	opDef operator
+	opDef Expression
 	// Type of search operation
 	searchType SearchType
 }
 
-func (op *opSearch) Evaluate(recCtx RequestContext) (Value, error) {
+func (op *exprSearch) Evaluate(recCtx RequestContext) (Value, error) {
 	key, err := op.opKey.Evaluate(recCtx)
 	if err != nil {
 		return op.nilResult(), err
@@ -485,7 +559,7 @@ func (op *opSearch) Evaluate(recCtx RequestContext) (Value, error) {
 		return def, nil
 	case STFindAll:
 		if ok {
-			return NewExprValueList(*op.ResType().UnitType, list), nil
+			return NewExprValueList(*op.ResultType().UnitType, list), nil
 		}
 		// If key not found return default value list if specified. Otherwise return a nil list.
 		if op.opDef == nil {
@@ -501,17 +575,27 @@ func (op *opSearch) Evaluate(recCtx RequestContext) (Value, error) {
 	}
 }
 
-// opSequence represent a sequence of sub-expressions.
-// The value from the last sub-operator is returned (including nil).
-// Note that empty sequences (no sub-operators) are not supported.
-type opSequence struct {
-	baseOperator
-	//	ruleCtx *ruleContext
-	// The sequence of sub-expressions to evaluate
-	ops []operator
+func NewExprSearch(opKey, opColl, opDef Expression, searchType SearchType, resType TypeSignature, line, col int) Expression {
+	return &exprSearch{
+		baseExpression: newBaseExpression(resType, line, col),
+		opKey:          opKey,
+		opColl:         opColl,
+		opDef:          opDef,
+		searchType:     searchType,
+	}
 }
 
-func (op *opSequence) Evaluate(recCtx RequestContext) (Value, error) {
+// exprSequence represent a sequence of sub-expressions.
+// The value from the last sub-Expression is returned (including nil).
+// Note that empty sequences (no sub-operators) are not supported.
+type exprSequence struct {
+	baseExpression
+	//	ruleCtx *ruleContext
+	// The sequence of sub-expressions to evaluate
+	ops []Expression
+}
+
+func (op *exprSequence) Evaluate(recCtx RequestContext) (Value, error) {
 	var res Value
 	for _, subOp := range op.ops {
 		var err error
@@ -521,4 +605,11 @@ func (op *opSequence) Evaluate(recCtx RequestContext) (Value, error) {
 		}
 	}
 	return res, nil
+}
+
+func NewExprSequence(ops []Expression, line, col int) Expression {
+	return &exprSequence{
+		baseExpression: newBaseExpression(ops[len(ops)-1].ResultType(), line, col), // Empty sequences are not supported
+		ops:            ops,
+	}
 }

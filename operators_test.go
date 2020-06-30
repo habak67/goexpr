@@ -5,358 +5,359 @@ import (
 )
 
 func TestOperator_Evaluate_Ok(t *testing.T) {
+	l, c := 1, 2
 	reqCtx := newEmptyTestRequestContext()
-	// opReference and opReturn manipulate contexts and therefore has separate unit tests
+	// exprReference and opReturn manipulate contexts and therefore has separate unit tests
 	tests := []struct {
 		name   string
-		op     operator
+		op     Expression
 		result Value
 	}{
 		// compare ---------------------------------------
-		{"OpCompareEqualTrue", newTestOpCompare(CTEqual, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(NewExprValueBoolean(true))), NewExprValueBoolean(true)},
-		{"OpCompareEqualTrueNil", newTestOpCompare(CTEqual, newTestOpConstant(EvNilBoolean),
-			newTestOpConstant(EvNilBoolean)), NewExprValueBoolean(true)},
-		{"OpCompareEqualFalse", newTestOpCompare(CTEqual, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(NewExprValueBoolean(false))), NewExprValueBoolean(false)},
-		{"OpCompareEqualFalseNonNilNil", newTestOpCompare(CTEqual, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(EvNilBoolean)), NewExprValueBoolean(false)},
-		{"OpCompareEqualFalseNilNonNil", newTestOpCompare(CTEqual, newTestOpConstant(EvNilBoolean),
-			newTestOpConstant(NewExprValueBoolean(false))), NewExprValueBoolean(false)},
+		{"OpCompareEqualTrue", NewExprCompare(CTEqual, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareEqualTrueNil", NewExprCompare(CTEqual, NewExprConstant(EvNilBoolean, l, c),
+			NewExprConstant(EvNilBoolean, l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareEqualFalse", NewExprCompare(CTEqual, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(false), l, c), l, c), NewExprValueBoolean(false)},
+		{"OpCompareEqualFalseNonNilNil", NewExprCompare(CTEqual, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(EvNilBoolean, l, c), l, c), NewExprValueBoolean(false)},
+		{"OpCompareEqualFalseNilNonNil", NewExprCompare(CTEqual, NewExprConstant(EvNilBoolean, l, c),
+			NewExprConstant(NewExprValueBoolean(false), l, c), l, c), NewExprValueBoolean(false)},
 
-		{"OpCompareNotEqualTrue", newTestOpCompare(CTNotEqual, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(NewExprValueBoolean(true))), NewExprValueBoolean(false)},
-		{"OpCompareNotEqualTrueNonNilNil", newTestOpCompare(CTNotEqual, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(EvNilBoolean)), NewExprValueBoolean(true)},
-		{"OpCompareNotEqualTrueNilNonNil", newTestOpCompare(CTNotEqual, newTestOpConstant(EvNilBoolean),
-			newTestOpConstant(NewExprValueBoolean(true))), NewExprValueBoolean(true)},
-		{"OpCompareNotEqualFalse", newTestOpCompare(CTNotEqual, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(NewExprValueBoolean(false))), NewExprValueBoolean(true)},
-		{"OpCompareNotEqualFalseNil", newTestOpCompare(CTNotEqual, newTestOpConstant(EvNilBoolean),
-			newTestOpConstant(EvNilBoolean)), NewExprValueBoolean(false)},
+		{"OpCompareNotEqualTrue", NewExprCompare(CTNotEqual, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c), NewExprValueBoolean(false)},
+		{"OpCompareNotEqualTrueNonNilNil", NewExprCompare(CTNotEqual, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(EvNilBoolean, l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareNotEqualTrueNilNonNil", NewExprCompare(CTNotEqual, NewExprConstant(EvNilBoolean, l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareNotEqualFalse", NewExprCompare(CTNotEqual, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(false), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareNotEqualFalseNil", NewExprCompare(CTNotEqual, NewExprConstant(EvNilBoolean, l, c),
+			NewExprConstant(EvNilBoolean, l, c), l, c), NewExprValueBoolean(false)},
 
-		{"OpCompareNonNilNil", newTestOpCompare(CTLess, newTestOpConstant(NewExprValueInteger(2)),
-			newTestOpConstant(EvNilInteger)), EvNilBoolean},
-		{"OpCompareNilNonNil", newTestOpCompare(CTLess, newTestOpConstant(EvNilInteger),
-			newTestOpConstant(NewExprValueInteger(1))), EvNilBoolean},
-		{"OpCompareNilNilLess", newTestOpCompare(CTLess, newTestOpConstant(EvNilInteger),
-			newTestOpConstant(EvNilInteger)), EvNilBoolean},
-		{"OpCompareNilNilLessEqual", newTestOpCompare(CTLessEqual, newTestOpConstant(EvNilInteger),
-			newTestOpConstant(EvNilInteger)), EvNilBoolean},
-		{"OpCompareNilNilGreater", newTestOpCompare(CTGreater, newTestOpConstant(EvNilInteger),
-			newTestOpConstant(EvNilInteger)), EvNilBoolean},
-		{"OpCompareNilNilGreaterEqual", newTestOpCompare(CTGreaterEqual, newTestOpConstant(EvNilInteger),
-			newTestOpConstant(EvNilInteger)), EvNilBoolean},
-		{"OpCompareNilNilMatch", newTestOpCompare(CTMatch, newTestOpConstant(EvNilString),
-			newTestOpConstant(EvNilRegexp)), EvNilBoolean},
+		{"OpCompareNonNilNil", NewExprCompare(CTLess, NewExprConstant(NewExprValueInteger(2), l, c),
+			NewExprConstant(EvNilInteger, l, c), l, c), EvNilBoolean},
+		{"OpCompareNilNonNil", NewExprCompare(CTLess, NewExprConstant(EvNilInteger, l, c),
+			NewExprConstant(NewExprValueInteger(1), l, c), l, c), EvNilBoolean},
+		{"OpCompareNilNilLess", NewExprCompare(CTLess, NewExprConstant(EvNilInteger, l, c),
+			NewExprConstant(EvNilInteger, l, c), l, c), EvNilBoolean},
+		{"OpCompareNilNilLessEqual", NewExprCompare(CTLessEqual, NewExprConstant(EvNilInteger, l, c),
+			NewExprConstant(EvNilInteger, l, c), l, c), EvNilBoolean},
+		{"OpCompareNilNilGreater", NewExprCompare(CTGreater, NewExprConstant(EvNilInteger, l, c),
+			NewExprConstant(EvNilInteger, l, c), l, c), EvNilBoolean},
+		{"OpCompareNilNilGreaterEqual", NewExprCompare(CTGreaterEqual, NewExprConstant(EvNilInteger, l, c),
+			NewExprConstant(EvNilInteger, l, c), l, c), EvNilBoolean},
+		{"OpCompareNilNilMatch", NewExprCompare(CTMatch, NewExprConstant(EvNilString, l, c),
+			NewExprConstant(EvNilRegexp, l, c), l, c), EvNilBoolean},
 
-		{"OpCompareLessTrue", newTestOpCompare(CTLess, newTestOpConstant(NewExprValueInteger(1)),
-			newTestOpConstant(NewExprValueInteger(2))), NewExprValueBoolean(true)},
-		{"OpCompareLessFalse", newTestOpCompare(CTLess, newTestOpConstant(NewExprValueInteger(2)),
-			newTestOpConstant(NewExprValueInteger(1))), NewExprValueBoolean(false)},
+		{"OpCompareLessTrue", NewExprCompare(CTLess, NewExprConstant(NewExprValueInteger(1), l, c),
+			NewExprConstant(NewExprValueInteger(2), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareLessFalse", NewExprCompare(CTLess, NewExprConstant(NewExprValueInteger(2), l, c),
+			NewExprConstant(NewExprValueInteger(1), l, c), l, c), NewExprValueBoolean(false)},
 
-		{"OpCompareLessEqualTrue", newTestOpCompare(CTLessEqual, newTestOpConstant(NewExprValueInteger(1)),
-			newTestOpConstant(NewExprValueInteger(2))), NewExprValueBoolean(true)},
-		{"OpCompareLessEqualTrue", newTestOpCompare(CTLessEqual, newTestOpConstant(NewExprValueInteger(2)),
-			newTestOpConstant(NewExprValueInteger(2))), NewExprValueBoolean(true)},
-		{"OpCompareLessEqualFalse", newTestOpCompare(CTLessEqual, newTestOpConstant(NewExprValueInteger(2)),
-			newTestOpConstant(NewExprValueInteger(1))), NewExprValueBoolean(false)},
+		{"OpCompareLessEqualTrue", NewExprCompare(CTLessEqual, NewExprConstant(NewExprValueInteger(1), l, c),
+			NewExprConstant(NewExprValueInteger(2), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareLessEqualTrue", NewExprCompare(CTLessEqual, NewExprConstant(NewExprValueInteger(2), l, c),
+			NewExprConstant(NewExprValueInteger(2), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareLessEqualFalse", NewExprCompare(CTLessEqual, NewExprConstant(NewExprValueInteger(2), l, c),
+			NewExprConstant(NewExprValueInteger(1), l, c), l, c), NewExprValueBoolean(false)},
 
-		{"OpCompareGreaterTrue", newTestOpCompare(CTGreater, newTestOpConstant(NewExprValueInteger(2)),
-			newTestOpConstant(NewExprValueInteger(1))), NewExprValueBoolean(true)},
-		{"OpCompareGreaterFalse", newTestOpCompare(CTGreater, newTestOpConstant(NewExprValueInteger(1)),
-			newTestOpConstant(NewExprValueInteger(2))), NewExprValueBoolean(false)},
+		{"OpCompareGreaterTrue", NewExprCompare(CTGreater, NewExprConstant(NewExprValueInteger(2), l, c),
+			NewExprConstant(NewExprValueInteger(1), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareGreaterFalse", NewExprCompare(CTGreater, NewExprConstant(NewExprValueInteger(1), l, c),
+			NewExprConstant(NewExprValueInteger(2), l, c), l, c), NewExprValueBoolean(false)},
 
-		{"OpCompareGreaterEqualTrue", newTestOpCompare(CTGreaterEqual, newTestOpConstant(NewExprValueInteger(2)),
-			newTestOpConstant(NewExprValueInteger(1))), NewExprValueBoolean(true)},
-		{"OpCompareGreaterEqualTrue", newTestOpCompare(CTGreaterEqual, newTestOpConstant(NewExprValueInteger(2)),
-			newTestOpConstant(NewExprValueInteger(2))), NewExprValueBoolean(true)},
-		{"OpCompareGreaterEqualFalse", newTestOpCompare(CTGreaterEqual, newTestOpConstant(NewExprValueInteger(1)),
-			newTestOpConstant(NewExprValueInteger(2))), NewExprValueBoolean(false)},
+		{"OpCompareGreaterEqualTrue", NewExprCompare(CTGreaterEqual, NewExprConstant(NewExprValueInteger(2), l, c),
+			NewExprConstant(NewExprValueInteger(1), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareGreaterEqualTrue", NewExprCompare(CTGreaterEqual, NewExprConstant(NewExprValueInteger(2), l, c),
+			NewExprConstant(NewExprValueInteger(2), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareGreaterEqualFalse", NewExprCompare(CTGreaterEqual, NewExprConstant(NewExprValueInteger(1), l, c),
+			NewExprConstant(NewExprValueInteger(2), l, c), l, c), NewExprValueBoolean(false)},
 
-		{"OpCompareMatchTrue", newTestOpCompare(CTMatch, newTestOpConstant(NewExprValueString("123")),
-			newTestOpConstant(NewExprValueRegexpMust("[0-9]{3}"))), NewExprValueBoolean(true)},
-		{"OpCompareMatchFalse", newTestOpCompare(CTMatch, newTestOpConstant(NewExprValueString("no match")),
-			newTestOpConstant(NewExprValueRegexpMust("[0-9]{3}"))), NewExprValueBoolean(false)},
+		{"OpCompareMatchTrue", NewExprCompare(CTMatch, NewExprConstant(NewExprValueString("123"), l, c),
+			NewExprConstant(NewExprValueRegexpMust("[0-9]{3}"), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpCompareMatchFalse", NewExprCompare(CTMatch, NewExprConstant(NewExprValueString("no match"), l, c),
+			NewExprConstant(NewExprValueRegexpMust("[0-9]{3}"), l, c), l, c), NewExprValueBoolean(false)},
 		// constant ---------------------------------------
-		{"opConstant", newTestOpConstant(NewExprValueString("foo")), NewExprValueString("foo")},
+		{"exprConstant", NewExprConstant(NewExprValueString("foo"), l, c), NewExprValueString("foo")},
 		// for ---------------------------------------
-		{"OpForNoBreak", newTestOpFor(
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpForNoBreak", NewExprFor(
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
-			})),
-			newTestOpReference("loop", "k1", nil, RSHeap, NewScalarTypeSignature(VTString)),
+			}), l, c),
+			NewExprReference("loop", "k1", nil, RSHeap, NewScalarTypeSignature(VTString), l, c),
 			nil,
-			"k1"),
+			"k1", l, c),
 			NewExprValueString("bar")},
-		{"OpForBreakTrue", newTestOpFor(
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpForBreakTrue", NewExprFor(
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
-			})),
-			newTestOpReference("loop", "k1", nil, RSHeap, NewScalarTypeSignature(VTString)),
-			newTestOpConstant(NewExprValueString("foo")),
-			"k1"),
+			}), l, c),
+			NewExprReference("loop", "k1", nil, RSHeap, NewScalarTypeSignature(VTString), l, c),
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			"k1", l, c),
 			NewExprValueString("foo")},
-		{"OpForBreakFalse", newTestOpFor(
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpForBreakFalse", NewExprFor(
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
-			})),
-			newTestOpReference("loop", "k1", nil, RSHeap, NewScalarTypeSignature(VTString)),
-			newTestOpConstant(NewExprValueString("not found")),
-			"k1"),
+			}), l, c),
+			NewExprReference("loop", "k1", nil, RSHeap, NewScalarTypeSignature(VTString), l, c),
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			"k1", l, c),
 			NewExprValueString("bar")},
-		{"OpForEmptyList", newTestOpFor(
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{})),
-			newTestOpReference("loop", "k1", nil, RSHeap, NewScalarTypeSignature(VTString)),
+		{"OpForEmptyList", NewExprFor(
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{}), l, c),
+			NewExprReference("loop", "k1", nil, RSHeap, NewScalarTypeSignature(VTString), l, c),
 			nil,
-			"k1"),
+			"k1", l, c),
 			EvNilString},
-		{"OpForNilList", newTestOpFor(
-			newTestOpConstant(NewNilExprValue(NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)))),
-			newTestOpReference("loop", "k1", nil, RSHeap, NewScalarTypeSignature(VTString)),
+		{"OpForNilList", NewExprFor(
+			NewExprConstant(NewNilExprValue(NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString))), l, c),
+			NewExprReference("loop", "k1", nil, RSHeap, NewScalarTypeSignature(VTString), l, c),
 			nil,
-			"k1"),
+			"k1", l, c),
 			EvNilString},
 		// if ---------------------------------------
-		{"OpIfThen", newTestOpIf(newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(NewExprValueString("then")), nil),
+		{"OpIfThen", NewExprIf(NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueString("then"), l, c), nil, l, c),
 			NewExprValueString("then")},
-		{"OpIfElse", newTestOpIf(newTestOpConstant(NewExprValueBoolean(false)),
-			newTestOpConstant(NewExprValueString("then")),
-			newTestOpConstant(NewExprValueString("else"))),
+		{"OpIfElse", NewExprIf(NewExprConstant(NewExprValueBoolean(false), l, c),
+			NewExprConstant(NewExprValueString("then"), l, c),
+			NewExprConstant(NewExprValueString("else"), l, c), l, c),
 			NewExprValueString("else")},
-		{"OpIfElseNoElse", newTestOpIf(newTestOpConstant(NewExprValueBoolean(false)),
-			newTestOpConstant(NewExprValueString("then")), nil),
+		{"OpIfElseNoElse", NewExprIf(NewExprConstant(NewExprValueBoolean(false), l, c),
+			NewExprConstant(NewExprValueString("then"), l, c), nil, l, c),
 			EvNilString},
-		{"OpIfNil", newTestOpIf(newTestOpConstant(EvNilBoolean),
-			newTestOpConstant(NewExprValueString("then")), newTestOpConstant(NewExprValueString("else"))),
+		{"OpIfNil", NewExprIf(NewExprConstant(EvNilBoolean, l, c),
+			NewExprConstant(NewExprValueString("then"), l, c), NewExprConstant(NewExprValueString("else"), l, c), l, c),
 			EvNilString},
 		// logical ---------------------------------------
-		{"OpLogicalAndTrueTrue", newTestOpLogical(LTAnd, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(NewExprValueBoolean(true))), NewExprValueBoolean(true)},
-		{"OpLogicalAndTrueFalse", newTestOpLogical(LTAnd, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(NewExprValueBoolean(false))), NewExprValueBoolean(false)},
-		{"OpLogicalAndTrueNil", newTestOpLogical(LTAnd, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(EvNilBoolean)), EvNilBoolean},
-		{"OpLogicalAndFalseTrue", newTestOpLogical(LTAnd, newTestOpConstant(NewExprValueBoolean(false)),
-			newTestOpConstant(NewExprValueBoolean(true))), NewExprValueBoolean(false)},
-		{"OpLogicalAndFalseFalse", newTestOpLogical(LTAnd, newTestOpConstant(NewExprValueBoolean(false)),
-			newTestOpConstant(NewExprValueBoolean(false))), NewExprValueBoolean(false)},
-		{"OpLogicalAndFalseNil", newTestOpLogical(LTAnd, newTestOpConstant(NewExprValueBoolean(false)),
-			newTestOpConstant(EvNilBoolean)), NewExprValueBoolean(false)},
-		{"OpLogicalAndNilTrue", newTestOpLogical(LTAnd, newTestOpConstant(EvNilBoolean),
-			newTestOpConstant(NewExprValueBoolean(true))), EvNilBoolean},
-		{"OpLogicalAndNilFalse", newTestOpLogical(LTAnd, newTestOpConstant(EvNilBoolean),
-			newTestOpConstant(NewExprValueBoolean(false))), EvNilBoolean},
+		{"OpLogicalAndTrueTrue", NewExprLogical(LTAnd, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpLogicalAndTrueFalse", NewExprLogical(LTAnd, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(false), l, c), l, c), NewExprValueBoolean(false)},
+		{"OpLogicalAndTrueNil", NewExprLogical(LTAnd, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(EvNilBoolean, l, c), l, c), EvNilBoolean},
+		{"OpLogicalAndFalseTrue", NewExprLogical(LTAnd, NewExprConstant(NewExprValueBoolean(false), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c), NewExprValueBoolean(false)},
+		{"OpLogicalAndFalseFalse", NewExprLogical(LTAnd, NewExprConstant(NewExprValueBoolean(false), l, c),
+			NewExprConstant(NewExprValueBoolean(false), l, c), l, c), NewExprValueBoolean(false)},
+		{"OpLogicalAndFalseNil", NewExprLogical(LTAnd, NewExprConstant(NewExprValueBoolean(false), l, c),
+			NewExprConstant(EvNilBoolean, l, c), l, c), NewExprValueBoolean(false)},
+		{"OpLogicalAndNilTrue", NewExprLogical(LTAnd, NewExprConstant(EvNilBoolean, l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c), EvNilBoolean},
+		{"OpLogicalAndNilFalse", NewExprLogical(LTAnd, NewExprConstant(EvNilBoolean, l, c),
+			NewExprConstant(NewExprValueBoolean(false), l, c), l, c), EvNilBoolean},
 
-		{"OpLogicalOrTrueTrue", newTestOpLogical(LTOr, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(NewExprValueBoolean(true))), NewExprValueBoolean(true)},
-		{"OpLogicalOrTrueFalse", newTestOpLogical(LTOr, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(NewExprValueBoolean(false))), NewExprValueBoolean(true)},
-		{"OpLogicalOrTrueNil", newTestOpLogical(LTOr, newTestOpConstant(NewExprValueBoolean(true)),
-			newTestOpConstant(EvNilBoolean)), NewExprValueBoolean(true)},
-		{"OpLogicalOrFalseTrue", newTestOpLogical(LTOr, newTestOpConstant(NewExprValueBoolean(false)),
-			newTestOpConstant(NewExprValueBoolean(true))), NewExprValueBoolean(true)},
-		{"OpLogicalOrFalseFalse", newTestOpLogical(LTOr, newTestOpConstant(NewExprValueBoolean(false)),
-			newTestOpConstant(NewExprValueBoolean(false))), NewExprValueBoolean(false)},
-		{"OpLogicalOrFalseNil", newTestOpLogical(LTOr, newTestOpConstant(NewExprValueBoolean(false)),
-			newTestOpConstant(EvNilBoolean)), EvNilBoolean},
-		{"OpLogicalOrNilTrue", newTestOpLogical(LTOr, newTestOpConstant(EvNilBoolean),
-			newTestOpConstant(NewExprValueBoolean(true))), EvNilBoolean},
-		{"OpLogicalOrNilFalse", newTestOpLogical(LTOr, newTestOpConstant(EvNilBoolean),
-			newTestOpConstant(NewExprValueBoolean(false))), EvNilBoolean},
+		{"OpLogicalOrTrueTrue", NewExprLogical(LTOr, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpLogicalOrTrueFalse", NewExprLogical(LTOr, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(false), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpLogicalOrTrueNil", NewExprLogical(LTOr, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(EvNilBoolean, l, c), l, c), NewExprValueBoolean(true)},
+		{"OpLogicalOrFalseTrue", NewExprLogical(LTOr, NewExprConstant(NewExprValueBoolean(false), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c), NewExprValueBoolean(true)},
+		{"OpLogicalOrFalseFalse", NewExprLogical(LTOr, NewExprConstant(NewExprValueBoolean(false), l, c),
+			NewExprConstant(NewExprValueBoolean(false), l, c), l, c), NewExprValueBoolean(false)},
+		{"OpLogicalOrFalseNil", NewExprLogical(LTOr, NewExprConstant(NewExprValueBoolean(false), l, c),
+			NewExprConstant(EvNilBoolean, l, c), l, c), EvNilBoolean},
+		{"OpLogicalOrNilTrue", NewExprLogical(LTOr, NewExprConstant(EvNilBoolean, l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c), EvNilBoolean},
+		{"OpLogicalOrNilFalse", NewExprLogical(LTOr, NewExprConstant(EvNilBoolean, l, c),
+			NewExprConstant(NewExprValueBoolean(false), l, c), l, c), EvNilBoolean},
 
-		{"OpLogicalNotTrue", newTestOpLogical(LTNot, newTestOpConstant(NewExprValueBoolean(true)),
-			nil), NewExprValueBoolean(false)},
-		{"OpLogicalNotFalse", newTestOpLogical(LTNot, newTestOpConstant(NewExprValueBoolean(false)),
-			nil), NewExprValueBoolean(true)},
-		{"OpLogicalNotNil", newTestOpLogical(LTNot, newTestOpConstant(EvNilBoolean),
-			nil), EvNilBoolean},
+		{"OpLogicalNotTrue", NewExprLogical(LTNot, NewExprConstant(NewExprValueBoolean(true), l, c),
+			nil, l, c), NewExprValueBoolean(false)},
+		{"OpLogicalNotFalse", NewExprLogical(LTNot, NewExprConstant(NewExprValueBoolean(false), l, c),
+			nil, l, c), NewExprValueBoolean(true)},
+		{"OpLogicalNotNil", NewExprLogical(LTNot, NewExprConstant(EvNilBoolean, l, c),
+			nil, l, c), EvNilBoolean},
 		// search ---------------------------------------
-		{"OpSearchNilKey", newTestOpSearch(
-			newTestOpConstant(EvNilString),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpSearchNilKey", NewExprSearch(
+			NewExprConstant(EvNilString, l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
-			})),
-			nil, STExist, NewScalarTypeSignature(VTBoolean)), EvNilBoolean},
-		{"OpSearchNilCollection", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("bar")),
-			newTestOpConstant(NewNilExprValue(NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)))),
-			nil, STExist, NewScalarTypeSignature(VTBoolean)), EvNilBoolean},
+			}), l, c),
+			nil, STExist, NewScalarTypeSignature(VTBoolean), l, c), EvNilBoolean},
+		{"OpSearchNilCollection", NewExprSearch(
+			NewExprConstant(NewExprValueString("bar"), l, c),
+			NewExprConstant(NewNilExprValue(NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString))), l, c),
+			nil, STExist, NewScalarTypeSignature(VTBoolean), l, c), EvNilBoolean},
 
-		{"OpSearchExistListFound", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("bar")),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpSearchExistListFound", NewExprSearch(
+			NewExprConstant(NewExprValueString("bar"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
-			})),
-			nil, STExist, NewScalarTypeSignature(VTBoolean)), NewExprValueBoolean(true)},
-		{"OpSearchExistListNotFound", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+			}), l, c),
+			nil, STExist, NewScalarTypeSignature(VTBoolean), l, c), NewExprValueBoolean(true)},
+		{"OpSearchExistListNotFound", NewExprSearch(
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
-			})),
-			nil, STExist, NewScalarTypeSignature(VTBoolean)), NewExprValueBoolean(false)},
-		{"OpSearchExistMapFound", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("foo")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+			}), l, c),
+			nil, STExist, NewScalarTypeSignature(VTBoolean), l, c), NewExprValueBoolean(false)},
+		{"OpSearchExistMapFound", NewExprSearch(
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			NewExprConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
 				"foo": NewExprValueString("foo1"),
 				"bar": NewExprValueString("bar1"),
-			})),
-			nil, STExist, NewScalarTypeSignature(VTBoolean)), NewExprValueBoolean(true)},
-		{"OpSearchExistMapNotFound", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+			}), l, c),
+			nil, STExist, NewScalarTypeSignature(VTBoolean), l, c), NewExprValueBoolean(true)},
+		{"OpSearchExistMapNotFound", NewExprSearch(
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			NewExprConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
 				"foo": NewExprValueString("foo1"),
 				"bar": NewExprValueString("bar1"),
-			})),
-			nil, STExist, NewScalarTypeSignature(VTBoolean)), NewExprValueBoolean(false)},
+			}), l, c),
+			nil, STExist, NewScalarTypeSignature(VTBoolean), l, c), NewExprValueBoolean(false)},
 
-		{"OpSearchFindListFound", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("foo")),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpSearchFindListFound", NewExprSearch(
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
 				NewExprValueString("foo"),
-			})), newTestOpConstant(NewExprValueString("baz")), STFind, NewScalarTypeSignature(VTString)),
+			}), l, c), NewExprConstant(NewExprValueString("baz"), l, c), STFind, NewScalarTypeSignature(VTString), l, c),
 			NewExprValueString("foo")},
-		{"OpSearchFindListNotFoundDefault", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpSearchFindListNotFoundDefault", NewExprSearch(
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
 				NewExprValueString("foo"),
-			})),
-			newTestOpConstant(NewExprValueString("default")), STFind, NewScalarTypeSignature(VTString)),
+			}), l, c),
+			NewExprConstant(NewExprValueString("default"), l, c), STFind, NewScalarTypeSignature(VTString), l, c),
 			NewExprValueString("default")},
-		{"OpSearchFindListNotFoundDefaultNil", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpSearchFindListNotFoundDefaultNil", NewExprSearch(
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
 				NewExprValueString("foo"),
-			})),
-			newTestOpConstant(EvNilString), STFind, NewScalarTypeSignature(VTString)),
+			}), l, c),
+			NewExprConstant(EvNilString, l, c), STFind, NewScalarTypeSignature(VTString), l, c),
 			EvNilString},
-		{"OpSearchFindListNotFoundNoDefault", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpSearchFindListNotFoundNoDefault", NewExprSearch(
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
 				NewExprValueString("foo"),
-			})),
-			nil, STFind, NewScalarTypeSignature(VTString)),
+			}), l, c),
+			nil, STFind, NewScalarTypeSignature(VTString), l, c),
 			EvNilString},
 
-		{"OpSearchFindMapFound", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("foo")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+		{"OpSearchFindMapFound", NewExprSearch(
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			NewExprConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
 				"foo": NewExprValueString("foo1"),
 				"bar": NewExprValueString("bar1"),
-			})),
-			newTestOpConstant(NewExprValueString("baz")), STFind, NewScalarTypeSignature(VTString)),
+			}), l, c),
+			NewExprConstant(NewExprValueString("baz"), l, c), STFind, NewScalarTypeSignature(VTString), l, c),
 			NewExprValueString("foo1")},
-		{"OpSearchFindMapNotFoundDefault", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+		{"OpSearchFindMapNotFoundDefault", NewExprSearch(
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			NewExprConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
 				"foo": NewExprValueString("foo1"),
 				"bar": NewExprValueString("bar1"),
-			})),
-			newTestOpConstant(NewExprValueString("default")), STFind, NewScalarTypeSignature(VTString)),
+			}), l, c),
+			NewExprConstant(NewExprValueString("default"), l, c), STFind, NewScalarTypeSignature(VTString), l, c),
 			NewExprValueString("default")},
-		{"OpSearchFindMapNotFoundDefaultNil", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+		{"OpSearchFindMapNotFoundDefaultNil", NewExprSearch(
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			NewExprConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
 				"foo": NewExprValueString("foo1"),
 				"bar": NewExprValueString("bar1"),
-			})),
-			newTestOpConstant(EvNilString), STFind, NewScalarTypeSignature(VTString)),
+			}), l, c),
+			NewExprConstant(EvNilString, l, c), STFind, NewScalarTypeSignature(VTString), l, c),
 			EvNilString},
-		{"OpSearchFindMapNotFoundNoDefault", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+		{"OpSearchFindMapNotFoundNoDefault", NewExprSearch(
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			NewExprConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
 				"foo": NewExprValueString("foo1"),
 				"bar": NewExprValueString("bar1"),
-			})),
-			nil, STFind, NewScalarTypeSignature(VTString)),
+			}), l, c),
+			nil, STFind, NewScalarTypeSignature(VTString), l, c),
 			EvNilString},
-		{"OpSearchFindAllListFoundSingle", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("bar")),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpSearchFindAllListFoundSingle", NewExprSearch(
+			NewExprConstant(NewExprValueString("bar"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
 				NewExprValueString("foo"),
-			})),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+			}), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("baz"),
-			})), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString))),
+			}), l, c), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), l, c),
 			NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("bar"),
 			})},
-		{"OpSearchFindAllListFoundMulti", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("foo")),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpSearchFindAllListFoundMulti", NewExprSearch(
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
 				NewExprValueString("foo"),
-			})),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+			}), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("baz"),
-			})), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString))),
+			}), l, c), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), l, c),
 			NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("foo"),
 			})},
-		{"OpSearchFindAllListNotFoundDefault", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+		{"OpSearchFindAllListNotFoundDefault", NewExprSearch(
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo"),
 				NewExprValueString("bar"),
 				NewExprValueString("foo"),
-			})),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+			}), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("default"),
-			})), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString))),
+			}), l, c), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), l, c),
 			NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("default"),
 			})},
-		{"OpSearchFindAllMapFound", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("foo")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+		{"OpSearchFindAllMapFound", NewExprSearch(
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			NewExprConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
 				"foo": NewExprValueString("foo1"),
 				"bar": NewExprValueString("bar1"),
-			})),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+			}), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("baz"),
-			})), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString))),
+			}), l, c), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), l, c),
 			NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("foo1"),
 			})},
-		{"OpSearchFindAllMapNotFound", newTestOpSearch(
-			newTestOpConstant(NewExprValueString("not found")),
-			newTestOpConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
+		{"OpSearchFindAllMapNotFound", NewExprSearch(
+			NewExprConstant(NewExprValueString("not found"), l, c),
+			NewExprConstant(NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
 				"foo": NewExprValueString("foo1"),
 				"bar": NewExprValueString("bar1"),
-			})),
-			newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+			}), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("baz"),
-			})), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString))),
+			}), l, c), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), l, c),
 			NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 				NewExprValueString("baz"),
 			})},
 		// sequence ---------------------------------------
-		{"OpSequence", newTestOpSequence([]operator{
-			newTestOpConstant(NewExprValueString("foo")),
-			newTestOpConstant(NewExprValueBoolean(true))}),
+		{"OpSequence", NewExprSequence([]Expression{
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c)}, l, c),
 			NewExprValueBoolean(true)},
-		{"OpSequenceLastNil", newTestOpSequence([]operator{
-			newTestOpConstant(NewExprValueString("foo")),
-			newTestOpConstant(EvNilBoolean)}),
+		{"OpSequenceLastNil", NewExprSequence([]Expression{
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			NewExprConstant(EvNilBoolean, l, c)}, l, c),
 			EvNilBoolean},
 	}
 	for _, test := range tests {
@@ -375,17 +376,18 @@ func TestOperator_Evaluate_Ok(t *testing.T) {
 }
 
 func TestEvaluate_OpSearchAll_NotFoundDefaultNil(t *testing.T) {
+	l, c := 1, 2
 	reqCtx := newEmptyTestRequestContext()
 
-	op := newTestOpSearch(
-		newTestOpConstant(NewExprValueString("not found")),
-		newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+	op := NewExprSearch(
+		NewExprConstant(NewExprValueString("not found"), l, c),
+		NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 			NewExprValueString("foo"),
 			NewExprValueString("bar"),
 			NewExprValueString("foo"),
-		})),
-		newTestOpConstant(NewNilExprValue(NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)))),
-		STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)))
+		}), l, c),
+		NewExprConstant(NewNilExprValue(NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString))), l, c),
+		STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), l, c)
 	res, err := op.Evaluate(reqCtx)
 	if err != nil {
 		t.Errorf("unexprected evaluation error: %v", err)
@@ -398,17 +400,18 @@ func TestEvaluate_OpSearchAll_NotFoundDefaultNil(t *testing.T) {
 }
 
 func TestEvaluate_OpSearchAll_NotFoundNoDefault(t *testing.T) {
+	l, c := 1, 2
 	reqCtx := newEmptyTestRequestContext()
 
-	op := newTestOpSearch(
-		newTestOpConstant(NewExprValueString("not found")),
-		newTestOpConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+	op := NewExprSearch(
+		NewExprConstant(NewExprValueString("not found"), l, c),
+		NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
 			NewExprValueString("foo"),
 			NewExprValueString("bar"),
 			NewExprValueString("foo"),
-		})),
+		}), l, c),
 		nil,
-		STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)))
+		STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), l, c)
 	res, err := op.Evaluate(reqCtx)
 	if err != nil {
 		t.Errorf("unexprected evaluation error: %v", err)
@@ -420,15 +423,16 @@ func TestEvaluate_OpSearchAll_NotFoundNoDefault(t *testing.T) {
 	}
 }
 
-// TODO test for opAssign value
+// TODO test for exprAssign value
 
 func TestEvaluate_OpAssign_Heap(t *testing.T) {
+	l, c := 1, 2
 	reqCtx := newEmptyTestRequestContext()
 
 	key := "key"
 	newValue := NewExprValueString("value")
 
-	op := newTestOpAssign("ref1", key, newTestOpConstant(newValue), nil, RSHeap)
+	op := NewExprAssign("ref1", key, NewExprConstant(newValue, l, c), nil, RSHeap, l, c)
 	res, err := op.Evaluate(reqCtx)
 	if err != nil {
 		t.Errorf("unexprected evaluation error: %v", err)
@@ -438,7 +442,7 @@ func TestEvaluate_OpAssign_Heap(t *testing.T) {
 		t.Errorf("wrong evaluation result.\nactual:   %v\nexprected: %v", res, newValue)
 		return
 	}
-	actual, err := reqCtx.Reference(key, op.resType)
+	actual, err := reqCtx.Reference(key, op.ResultType())
 	if err != nil {
 		t.Errorf("unexprected reference error: %v", err)
 		return
@@ -450,12 +454,13 @@ func TestEvaluate_OpAssign_Heap(t *testing.T) {
 }
 
 func TestEvaluate_OpAssign_HeapNil(t *testing.T) {
+	l, c := 1, 2
 	reqCtx := newEmptyTestRequestContext()
 
 	key := "key"
 	newValue := EvNilString
 
-	op := newTestOpAssign("ref1", key, newTestOpConstant(newValue), nil, RSHeap)
+	op := NewExprAssign("ref1", key, NewExprConstant(newValue, l, c), nil, RSHeap, l, c)
 	res, err := op.Evaluate(reqCtx)
 	if err != nil {
 		t.Errorf("unexprected evaluation error: %v", err)
@@ -465,7 +470,7 @@ func TestEvaluate_OpAssign_HeapNil(t *testing.T) {
 		t.Errorf("wrong evaluation result.\nactual:   %v\nexprected: %v", res, newValue)
 		return
 	}
-	actual, err := reqCtx.Reference(key, op.resType)
+	actual, err := reqCtx.Reference(key, op.ResultType())
 	if err != nil {
 		t.Errorf("unexprected reference error: %v", err)
 		return
@@ -476,9 +481,10 @@ func TestEvaluate_OpAssign_HeapNil(t *testing.T) {
 	}
 }
 
-// TODO test for opReference value
+// TODO test for exprReference value
 
 func TestEvaluate_OpReference_Heap(t *testing.T) {
+	l, c := 1, 2
 	reqCtx := newEmptyTestRequestContext()
 
 	// Non nil value found
@@ -490,7 +496,7 @@ func TestEvaluate_OpReference_Heap(t *testing.T) {
 		return
 	}
 
-	op := newTestOpReference("ref1", key, nil, RSHeap, NewScalarTypeSignature(VTString))
+	op := NewExprReference("ref1", key, nil, RSHeap, NewScalarTypeSignature(VTString), l, c)
 	res, err := op.Evaluate(reqCtx)
 	if err != nil {
 		t.Errorf("unexprected evaluation error: %v", err)
@@ -510,7 +516,7 @@ func TestEvaluate_OpReference_Heap(t *testing.T) {
 		return
 	}
 
-	op = newTestOpReference("ref1", key, nil, RSHeap, NewScalarTypeSignature(VTString))
+	op = NewExprReference("ref1", key, nil, RSHeap, NewScalarTypeSignature(VTString), l, c)
 	res, err = op.Evaluate(reqCtx)
 	if err != nil {
 		t.Errorf("unexprected evaluation error: %v", err)
@@ -524,7 +530,7 @@ func TestEvaluate_OpReference_Heap(t *testing.T) {
 	// Reference not found
 	key = "k3"
 
-	op = newTestOpReference("ref1", key, nil, RSHeap, NewScalarTypeSignature(VTString))
+	op = NewExprReference("ref1", key, nil, RSHeap, NewScalarTypeSignature(VTString), l, c)
 	res, err = op.Evaluate(reqCtx)
 	if err != nil {
 		t.Errorf("unexprected evaluation error: %v", err)

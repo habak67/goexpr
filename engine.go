@@ -9,9 +9,3 @@ type RequestContext interface {
 	// implementation of the RequestContext interface.
 	Assign(key interface{}, value Value) error
 }
-
-type Expression interface {
-	// Evaluate evaluates the expression using the specified request context. The value from the evaluation is returned.
-	// If there was an error in the evaluation the error is returned.
-	Evaluate(reqContext RequestContext) (Value, error)
-}
