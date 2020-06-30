@@ -172,12 +172,12 @@ func TestOperator_Evaluate_Ok(t *testing.T) {
 		{"OpLogicalOrNilFalse", NewExprLogical(LTOr, NewExprConstant(EvNilBoolean, l, c),
 			NewExprConstant(NewExprValueBoolean(false), l, c), l, c), EvNilBoolean},
 
-		{"OpLogicalNotTrue", NewExprLogical(LTNot, NewExprConstant(NewExprValueBoolean(true), l, c),
-			nil, l, c), NewExprValueBoolean(false)},
-		{"OpLogicalNotFalse", NewExprLogical(LTNot, NewExprConstant(NewExprValueBoolean(false), l, c),
-			nil, l, c), NewExprValueBoolean(true)},
-		{"OpLogicalNotNil", NewExprLogical(LTNot, NewExprConstant(EvNilBoolean, l, c),
-			nil, l, c), EvNilBoolean},
+		{"OpLogicalNotTrue", NewExprLogicalUnary(LTNot, NewExprConstant(NewExprValueBoolean(true), l, c),
+			l, c), NewExprValueBoolean(false)},
+		{"OpLogicalNotFalse", NewExprLogicalUnary(LTNot, NewExprConstant(NewExprValueBoolean(false), l, c),
+			l, c), NewExprValueBoolean(true)},
+		{"OpLogicalNotNil", NewExprLogicalUnary(LTNot, NewExprConstant(EvNilBoolean, l, c),
+			l, c), EvNilBoolean},
 		// search ---------------------------------------
 		{"OpSearchNilKey", NewExprSearch(
 			NewExprConstant(EvNilString, l, c),

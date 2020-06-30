@@ -466,6 +466,10 @@ func NewExprLogical(lt LogicalType, leftOp Expression, rightOp Expression, line,
 	}
 }
 
+func NewExprLogicalUnary(lt LogicalType, leftOp Expression, line, col int) Expression {
+	return NewExprLogical(lt, leftOp, nil, line, col)
+}
+
 // exprReference reads a reference from the request context reference heap or a referable value (struct).
 // The result of the Expression is the value read.
 // Source specifies the reference type (heap or referable variable). Index is the reference index to read. If source is
