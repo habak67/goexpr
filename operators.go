@@ -527,14 +527,24 @@ func (op *exprReference) ExpectedResultType(rt TypeSignature) bool {
 	return false
 }
 
-func NewExprReference(name string, key interface{}, sourceOp Expression, source ReferenceSource, line, col int) Expression {
+func NewExprHeapReference(name string, key interface{}, line, col int) Expression {
+	return &exprReference{
+		// As default a reference returns a string
+		baseExpression: newBaseExpression(NewScalarTypeSignature(VTString), line, col),
+		name:           name,
+		key:            key,
+		source:         RSHeap,
+	}
+}
+
+func NewExprValueReference(name string, key interface{}, sourceOp Expression, line, col int) Expression {
 	return &exprReference{
 		// As default a reference returns a string
 		baseExpression: newBaseExpression(NewScalarTypeSignature(VTString), line, col),
 		name:           name,
 		key:            key,
 		sourceOp:       sourceOp,
-		source:         source,
+		source:         RSValue,
 	}
 }
 
