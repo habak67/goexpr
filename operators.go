@@ -212,13 +212,34 @@ func (op *exprCompare) Evaluate(recCtx RequestContext) (Value, error) {
 	}
 }
 
-func NewExprCompare(ct CompareType, leftOp Expression, rightOp Expression, line, col int) Expression {
+func NewExprCompare(ct CompareType, leftOp Expression, rightOp Expression, line, col int) (Expression, error) {
+	// If match compare and matcher is a constant string convert to constant regexp
+	if ct == CTMatch {
+		constant, ok := rightOp.(*exprConstant)
+		if ok && constant.ResultType().IsValueType(VTString) {
+			str := constant.c.Value.(string)
+			regexp, err := NewExprValueRegexp(str)
+			if err != nil {
+				return nil, fmt.Errorf("can't create regexp from %s: %v", str, err)
+			}
+			rightOp = NewExprConstant(regexp, line, col)
+		}
+	}
+
 	return &exprCompare{
 		baseExpression: newBaseExpression(NewScalarTypeSignature(VTBoolean), line, col),
 		ct:             ct,
 		opLeft:         leftOp,
 		opRight:        rightOp,
+	}, nil
+}
+
+func NewExprCompareMust(ct CompareType, leftOp Expression, rightOp Expression, line, col int) Expression {
+	expr, err := NewExprCompare(ct, leftOp, rightOp, line, col)
+	if err != nil {
+		panic(fmt.Sprintf("error creating compare expression: %v", err))
 	}
+	return expr
 }
 
 // exprConstant returns a specified constant value.
