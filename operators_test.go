@@ -4,6 +4,122 @@ import (
 	"testing"
 )
 
+func TestOperator_String(t *testing.T) {
+	l, c := 1, 2
+	tests := []struct {
+		name string
+		op   Expression
+		str  string
+	}{
+		{"OpCompareEqualTrue", NewExprAssign("assign", "my/ref",
+			NewExprConstant(NewExprValueBoolean(true), l, c), nil, RSHeap, l, c),
+			`(my/ref = true)`},
+		// compare ---------------------------------------
+		{"OpCompareEqualTrue", NewExprCompareMust(CTEqual, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c),
+			`(true == true)`},
+		{"OpCompareNotEqualTrue", NewExprCompareMust(CTNotEqual, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c),
+			`(true != true)`},
+		{"OpCompareLessTrue", NewExprCompareMust(CTLess, NewExprConstant(NewExprValueInteger(1), l, c),
+			NewExprConstant(NewExprValueInteger(2), l, c), l, c),
+			`(1 < 2)`},
+		{"OpCompareLessEqualTrue", NewExprCompareMust(CTLessEqual, NewExprConstant(NewExprValueInteger(1), l, c),
+			NewExprConstant(NewExprValueInteger(2), l, c), l, c),
+			`(1 <= 2)`},
+		{"OpCompareGreaterTrue", NewExprCompareMust(CTGreater, NewExprConstant(NewExprValueInteger(2), l, c),
+			NewExprConstant(NewExprValueInteger(1), l, c), l, c),
+			`(2 > 1)`},
+		{"OpCompareGreaterEqualTrue", NewExprCompareMust(CTGreaterEqual, NewExprConstant(NewExprValueInteger(2), l, c),
+			NewExprConstant(NewExprValueInteger(1), l, c), l, c),
+			`(2 >= 1)`},
+		{"OpCompareMatchTrue", NewExprCompareMust(CTMatch, NewExprConstant(NewExprValueString("123"), l, c),
+			NewExprConstant(NewExprValueRegexpMust("[0-9]{3}"), l, c), l, c),
+			`("123" match "[0-9]{3}")`},
+		// constant ---------------------------------------
+		{"exprConstant", NewExprConstant(NewExprValueString("foo"), l, c),
+			`"foo"`},
+		// for ---------------------------------------
+		{"OpForNoBreak", NewExprFor(
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+				NewExprValueString("foo"),
+				NewExprValueString("bar"),
+			}), l, c),
+			NewExprHeapReference("loop", "k1", l, c),
+			nil,
+			"k1", l, c),
+			`(foreach k1 in ["foo","bar"] do k1)`},
+		{"OpForBreakTrue", NewExprFor(
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+				NewExprValueString("foo"),
+				NewExprValueString("bar"),
+			}), l, c),
+			NewExprHeapReference("loop", "k1", l, c),
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			"k1", l, c),
+			`(foreach k1 in ["foo","bar"] break on "foo" do k1)`},
+		// if ---------------------------------------
+		{"OpIfThen", NewExprIf(NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueString("then"), l, c), nil, l, c),
+			`(if true then "then")`},
+		{"OpIfElse", NewExprIf(NewExprConstant(NewExprValueBoolean(false), l, c),
+			NewExprConstant(NewExprValueString("then"), l, c),
+			NewExprConstant(NewExprValueString("else"), l, c), l, c),
+			`(if false then "then" else "else")`},
+		// logical ---------------------------------------
+		{"OpLogicalAndTrueTrue", NewExprLogical(LTAnd, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c),
+			`(true and true)`},
+		{"OpLogicalOrTrueTrue", NewExprLogical(LTOr, NewExprConstant(NewExprValueBoolean(true), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c), l, c),
+			`(true or true)`},
+		{"OpLogicalNotTrue", NewExprLogicalUnary(LTNot, NewExprConstant(NewExprValueBoolean(true), l, c),
+			l, c),
+			`(not true)`},
+		{"OpLogicalOrTrueTrue", NewExprHeapReference("ref", "my/ref", l, c),
+			`my/ref`},
+		// search ---------------------------------------
+		{"OpSearchExistListFound", NewExprSearch(
+			NewExprConstant(NewExprValueString("bar"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+				NewExprValueString("foo"),
+				NewExprValueString("bar"),
+			}), l, c),
+			nil, STExist, NewScalarTypeSignature(VTBoolean), l, c),
+			`(exist "bar" in ["foo","bar"])`},
+		{"OpSearchFindListFound", NewExprSearch(
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+				NewExprValueString("foo"),
+				NewExprValueString("bar"),
+			}), l, c), nil, STFind, NewScalarTypeSignature(VTString), l, c),
+			`(find "foo" in ["foo","bar"])`},
+		{"OpSearchFindAllListFoundSingle", NewExprSearch(
+			NewExprConstant(NewExprValueString("bar"), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+				NewExprValueString("foo"),
+				NewExprValueString("bar"),
+			}), l, c),
+			NewExprConstant(NewExprValueList(NewScalarTypeSignature(VTString), []Value{
+				NewExprValueString("baz"),
+			}), l, c), STFindAll, NewCompositeTypeSignature(VTList, NewScalarTypeSignature(VTString)), l, c),
+			`(find all "bar" in ["foo","bar"] default ["baz"])`},
+		// sequence ---------------------------------------
+		{"OpSequence", NewExprSequence([]Expression{
+			NewExprConstant(NewExprValueString("foo"), l, c),
+			NewExprConstant(NewExprValueBoolean(true), l, c)}, l, c),
+			`{"foo" true}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			str := test.op.String()
+			if str != test.str {
+				t.Errorf("wrong string result.\nactual:   %v\nexpected: %v", str, test.str)
+			}
+		})
+	}
+}
+
 func TestOperator_Evaluate_Ok(t *testing.T) {
 	l, c := 1, 2
 	reqCtx := newEmptyTestRequestContext()
@@ -371,7 +487,6 @@ func TestOperator_Evaluate_Ok(t *testing.T) {
 			}
 			if !res.Equal(test.result) {
 				t.Errorf("wrong evaluation result.\nactual:   %v\nexpected: %v", res, test.result)
-				return
 			}
 		})
 	}
@@ -560,5 +675,4 @@ func TestEvaluate_OpReference_Heap(t *testing.T) {
 	if !res.Equal(valueI) {
 		t.Errorf("wrong request context reference heap (key %s).\nactual:   %v\nexprected: %v", key, res, valueI)
 	}
-
 }

@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"github.com/habak67/go-utils"
 	"regexp"
+	"sort"
 	"strconv"
+	"strings"
 )
 
 // Common constant type signatures
@@ -147,11 +149,8 @@ func (ev Value) Compare(Ev2 Value) Value {
 	}
 }
 
-// NaturalStringValue return the natural string representation of the REL value if the value datatype has a natural
-// string representation.
-// If the value type has no natural string representation a panic is raised.
-func (ev Value) NaturalStringValue() string {
-	// Nil is always converted to a blank string
+// String return a compact string representation of the REL value
+func (ev Value) String() string {
 	if ev.Nil() {
 		return "<<nil>>"
 	}
@@ -160,10 +159,52 @@ func (ev Value) NaturalStringValue() string {
 		return strconv.FormatBool(ev.Value.(bool))
 	case VTInteger:
 		return strconv.FormatInt(int64(ev.Value.(int)), 10)
+	case VTList:
+		var sb strings.Builder
+		sb.WriteString("[")
+		first := true
+		for _, val := range ev.Value.([]Value) {
+			if !first {
+				sb.WriteString(",")
+			}
+			sb.WriteString(val.String())
+			first = false
+		}
+		sb.WriteString("]")
+		return sb.String()
+	case VTMap:
+		var sb strings.Builder
+		sb.WriteString("{")
+
+		// To get a consistent map string we "sort" the map by key
+		valueMap := ev.Value.(map[string]Value)
+		keys := make([]string, 0, len(valueMap))
+		for key := range valueMap {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		first := true
+		for _, key := range keys {
+			if !first {
+				sb.WriteString(",")
+			}
+			sb.WriteString(key)
+			sb.WriteString(":")
+			sb.WriteString(valueMap[key].String())
+			first = false
+		}
+
+		sb.WriteString("}")
+		return sb.String()
 	case VTString, VTRegexp:
-		return ev.Value.(string)
+		// A string value is represented as a string literar including string markers ("a string")
+		var sb strings.Builder
+		sb.WriteString(`"`)
+		sb.WriteString(ev.Value.(string))
+		sb.WriteString(`"`)
+		return sb.String()
 	default:
-		panic(fmt.Sprintf("value type %v has no natural string representation", ev.Type.BaseType))
+		panic(fmt.Sprintf("value type %v has no string representation", ev.Type.BaseType))
 	}
 }
 
@@ -178,14 +219,16 @@ func (ev Value) SearchAll(key Value) ([]Value, bool) {
 		res := make([]Value, 0)
 		for _, v := range list {
 			// We currently only return a single instance even if the searched for value occurs multiple times in the list.
-			if v.NaturalStringValue() == key.NaturalStringValue() {
+			if v.String() == key.String() {
 				res = append(res, v)
 			}
 		}
 		return res, len(res) > 0
 	case VTMap:
+		// trim eventual string markers (")
+		keyS := strings.Trim(key.String(), "\"")
 		m := ev.Value.(map[string]Value)
-		v, ok := m[key.NaturalStringValue()]
+		v, ok := m[keyS]
 		return []Value{v}, ok
 	default:
 		panic(fmt.Sprintf("value type %v is not searchable", ev.Type.BaseType))
@@ -484,11 +527,15 @@ func NewExprValueRegexpMust(value string) Value {
 	return re
 }
 
+// NewExprValueString creates a new expression string value.
+// Note that eventual string markers (") in the specified raw string is trimmed. This is to avoid creating
+// double markers (""a string"") when using String() on the created expression string value.
 func NewExprValueString(value string) Value {
-	return Value{
+	v := Value{
 		Type:  NewScalarTypeSignature(VTString),
-		Value: value,
+		Value: strings.Trim(value, "\""),
 	}
+	return v
 }
 
 // Value type
@@ -526,8 +573,6 @@ type ValueTypeMetadata map[ValueType]struct {
 	comparable bool
 	// May you search, including check for existence, for a scalar value in an instance of the type
 	searchable bool
-	// Does the datatype have a natural string representation
-	stringable bool
 	// May you assign a sub-value to the type
 	assignable bool
 	// May you reference a sub-value from the type
@@ -561,19 +606,14 @@ func (v ValueTypeMetadata) Searchable(vt ValueType) bool {
 	return v[vt].searchable
 }
 
-// Stringable returns true if the value type has a natural string representation
-func (v ValueTypeMetadata) Stringable(vt ValueType) bool {
-	return v[vt].stringable
-}
-
 // Assignable returns true if you may assign a sub-value to the type
 func (v ValueTypeMetadata) Assignable(vt ValueType) bool {
-	return v[vt].stringable
+	return v[vt].assignable
 }
 
 // Reference returns true if you may reference a sub-value from the type
 func (v ValueTypeMetadata) Reference(vt ValueType) bool {
-	return v[vt].stringable
+	return v[vt].reference
 }
 
 // Iterable returns true if the type is itereable (you may iterate over it using e.g. a foreach loop)
@@ -592,17 +632,17 @@ func (v ValueTypeMetadata) Scalar(vt ValueType) bool {
 }
 
 var VTMetadata = ValueTypeMetadata{
-	VTBoolean: {true, false, false, true, false, false, false,
+	VTBoolean: {true, false, false, false, false, false,
 		true, true},
-	VTInteger: {true, true, false, true, false, false, false,
+	VTInteger: {true, true, false, false, false, false,
 		true, true},
-	VTList: {true, false, true, false, false, false, true,
+	VTList: {true, false, true, false, false, true,
 		false, false},
-	VTMap: {true, false, true, false, false, false, false,
+	VTMap: {true, false, true, false, false, false,
 		false, false},
-	VTRegexp: {true, false, false, true, false, false, false,
+	VTRegexp: {true, false, false, false, false, false,
 		true, true},
-	VTString: {true, false, false, true, false, false, false,
+	VTString: {true, false, false, false, false, false,
 		true, true},
 }
 
@@ -613,9 +653,6 @@ type TypeSignature struct {
 	// If the base type is a composite type (list or map) the type for the values hold by the composite type (e.g. list of strings)
 	// Note that a struct could have values of different types. UnitType is therefore nil for structs.
 	UnitType *TypeSignature `json:"unit_type,omitempty"`
-	// Symbol table used for structs. Note that the symbol table is removed in json marshalling. This should be no problem
-	// as only the compiler needs it and not the engine.
-	SymTab *utils.SymbolTable `json:"-"`
 }
 
 func (ts TypeSignature) String() string {
@@ -655,20 +692,11 @@ func NewScalarTypeSignature(base ValueType) TypeSignature {
 	return TypeSignature{BaseType: base}
 }
 
-// NewScalarTypeSignature creates a type signature for a scalar value type
-func NewScalarTypeSignatureWithSymTab(base ValueType, symTab *utils.SymbolTable) TypeSignature {
-	return TypeSignature{
-		BaseType: base,
-		SymTab:   symTab,
-	}
-}
-
 // NewCompositeTypeSignature create a type signature for a composite value type
 func NewCompositeTypeSignature(base ValueType, unit TypeSignature) TypeSignature {
 	return TypeSignature{
 		BaseType: base,
 		UnitType: &unit,
-		SymTab:   unit.SymTab, // if there is a symbol table in the unit type copy it to the composite type signature
 	}
 }
 

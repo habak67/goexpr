@@ -1,6 +1,9 @@
 package goexpr
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type testRequestContext struct {
 	// We store all values as strings
@@ -34,7 +37,8 @@ func (rc testRequestContext) Assign(key interface{}, value Value) error {
 		// We treat nil value as "no value"
 		return nil
 	}
-	rc.Values[keyS] = value.NaturalStringValue()
+	// Store value as a string removing eventual string markers (") that exist for expression string values
+	rc.Values[keyS] = strings.Trim(value.String(), "\"")
 	return nil
 }
 

@@ -2,6 +2,7 @@ package goexpr
 
 import (
 	"fmt"
+	"strings"
 )
 
 // Reference source type
@@ -24,6 +25,48 @@ const (
 	CTGreaterEqual CompareType = "GE"
 	CTMatch        CompareType = "match"
 )
+
+func CompareTypeFromString(ct string) (CompareType, error) {
+	switch ct {
+	case "==":
+		return CTEqual, nil
+	case "!=":
+		return CTNotEqual, nil
+	case "<":
+		return CTLess, nil
+	case "<=":
+		return CTLessEqual, nil
+	case ">":
+		return CTGreater, nil
+	case ">=":
+		return CTGreaterEqual, nil
+	case "match":
+		return CTMatch, nil
+	default:
+		return "", fmt.Errorf("invalid pel compare type %s", ct)
+	}
+}
+
+func CompareTypeToString(ct CompareType) string {
+	switch ct {
+	case CTEqual:
+		return "=="
+	case CTNotEqual:
+		return "!="
+	case CTLess:
+		return "<"
+	case CTLessEqual:
+		return "<="
+	case CTGreater:
+		return ">"
+	case CTGreaterEqual:
+		return ">="
+	case CTMatch:
+		return "match"
+	default:
+		panic(fmt.Sprintf("unknown compare type %v", ct))
+	}
+}
 
 // Logical Expression type
 type LogicalType string
@@ -58,6 +101,8 @@ type Expression interface {
 	// The difference between using ResultType() is that some "dynamically typed" expressions (e.g. reference)
 	// may adapt to the expected result type.
 	ExpectedResultType(rt TypeSignature) bool
+	// String returns a compact string representation of the expression. The string is mainly used in tests.
+	String() string
 }
 
 func newBaseExpression(rt TypeSignature, line, col int) baseExpression {
@@ -144,6 +189,25 @@ func (op *exprAssign) Evaluate(recCtx RequestContext) (Value, error) {
 	return value, nil
 }
 
+func (op *exprAssign) String() string {
+	var sb strings.Builder
+	sb.WriteString("(")
+	switch op.source {
+	case RSHeap:
+		sb.WriteString(fmt.Sprintf("%v", op.key))
+	case RSValue:
+		sb.WriteString(op.sourceOp.String())
+		sb.WriteString(".")
+		sb.WriteString(fmt.Sprintf("%v", op.key))
+	default:
+		panic(fmt.Sprintf("unknown reference source %v", op.source))
+	}
+	sb.WriteString(" = ")
+	sb.WriteString(op.valueOp.String())
+	sb.WriteString(")")
+	return sb.String()
+}
+
 func NewExprAssign(name string, key interface{}, valueOp, sourceOp Expression, source ReferenceSource, line, col int) Expression {
 	return &exprAssign{
 		baseExpression: newBaseExpression(valueOp.ResultType(), line, col),
@@ -218,6 +282,18 @@ func (op *exprCompare) Evaluate(recCtx RequestContext) (Value, error) {
 	}
 }
 
+func (op *exprCompare) String() string {
+	var sb strings.Builder
+	sb.WriteString("(")
+	sb.WriteString(op.opLeft.String())
+	sb.WriteString(" ")
+	sb.WriteString(CompareTypeToString(op.ct))
+	sb.WriteString(" ")
+	sb.WriteString(op.opRight.String())
+	sb.WriteString(")")
+	return sb.String()
+}
+
 func NewExprCompare(ct CompareType, leftOp Expression, rightOp Expression, line, col int) (Expression, error) {
 	// If match compare and matcher is a constant string convert to constant regexp
 	if ct == CTMatch {
@@ -259,6 +335,10 @@ func (op *exprConstant) Evaluate(_ RequestContext) (Value, error) {
 	return op.c, nil
 }
 
+func (op *exprConstant) String() string {
+	return op.c.String()
+}
+
 func NewExprConstant(c Value, line, col int) Expression {
 	return &exprConstant{
 		baseExpression: newBaseExpression(c.Type, line, col),
@@ -271,6 +351,10 @@ func NewExprConstant(c Value, line, col int) Expression {
 type exprError struct {
 	baseExpression
 	//	ruleCtx *ruleContext
+}
+
+func (op *exprError) String() string {
+	return "<<error>>"
 }
 
 func (op *exprError) Evaluate(_ RequestContext) (Value, error) {
@@ -337,6 +421,22 @@ func (op *exprFor) Evaluate(recCtx RequestContext) (Value, error) {
 	return res, nil
 }
 
+func (op *exprFor) String() string {
+	var sb strings.Builder
+	sb.WriteString("(foreach ")
+	sb.WriteString(op.key)
+	sb.WriteString(" in ")
+	sb.WriteString(op.opList.String())
+	if op.opBreak != nil {
+		sb.WriteString(" break on ")
+		sb.WriteString(op.opBreak.String())
+	}
+	sb.WriteString(" do ")
+	sb.WriteString(op.opLoop.String())
+	sb.WriteString(")")
+	return sb.String()
+}
+
 func NewExprFor(opList Expression, opLoop Expression, opBreak Expression, key string, line, col int) Expression {
 	return &exprFor{
 		baseExpression: newBaseExpression(*opList.ResultType().UnitType, line, col),
@@ -389,6 +489,20 @@ func (op *exprIf) Evaluate(recCtx RequestContext) (Value, error) {
 		return op.nilResult(), err
 	}
 	return elseRes, nil
+}
+
+func (op *exprIf) String() string {
+	var sb strings.Builder
+	sb.WriteString("(if ")
+	sb.WriteString(op.checkOp.String())
+	sb.WriteString(" then ")
+	sb.WriteString(op.thenOp.String())
+	if op.elseOp != nil {
+		sb.WriteString(" else ")
+		sb.WriteString(op.elseOp.String())
+	}
+	sb.WriteString(")")
+	return sb.String()
 }
 
 func NewExprIf(checkOp Expression, thenOp Expression, elseOp Expression, line, col int) Expression {
@@ -463,6 +577,26 @@ func (op *exprLogical) Evaluate(recCtx RequestContext) (Value, error) {
 	}
 }
 
+func (op *exprLogical) String() string {
+	var sb strings.Builder
+	sb.WriteString("(")
+	switch op.lt {
+	case LTAnd:
+		sb.WriteString(op.opLeft.String())
+		sb.WriteString(" and ")
+		sb.WriteString(op.opRight.String())
+	case LTOr:
+		sb.WriteString(op.opLeft.String())
+		sb.WriteString(" or ")
+		sb.WriteString(op.opRight.String())
+	case LTNot:
+		sb.WriteString("not ")
+		sb.WriteString(op.opLeft.String())
+	}
+	sb.WriteString(")")
+	return sb.String()
+}
+
 func NewExprLogical(lt LogicalType, leftOp Expression, rightOp Expression, line, col int) Expression {
 	return &exprLogical{
 		baseExpression: newBaseExpression(NewScalarTypeSignature(VTBoolean), line, col),
@@ -513,6 +647,21 @@ func (op *exprReference) Evaluate(recCtx RequestContext) (Value, error) {
 	default:
 		panic(fmt.Sprintf("unknown reference source %v", op.source))
 	}
+}
+
+func (op *exprReference) String() string {
+	var sb strings.Builder
+	switch op.source {
+	case RSHeap:
+		sb.WriteString(fmt.Sprintf("%v", op.key))
+	case RSValue:
+		sb.WriteString(op.sourceOp.String())
+		sb.WriteString(".")
+		sb.WriteString(fmt.Sprintf("%v", op.key))
+	default:
+		panic(fmt.Sprintf("unknown reference source %v", op.source))
+	}
+	return sb.String()
 }
 
 func (op *exprReference) ExpectedResultType(rt TypeSignature) bool {
@@ -629,6 +778,30 @@ func (op *exprSearch) Evaluate(recCtx RequestContext) (Value, error) {
 	}
 }
 
+func (op *exprSearch) String() string {
+	var sb strings.Builder
+	sb.WriteString("(")
+	switch op.searchType {
+	case STExist:
+		sb.WriteString("exist ")
+	case STFind:
+		sb.WriteString("find ")
+	case STFindAll:
+		sb.WriteString("find all ")
+	default:
+		panic(fmt.Sprintf("unknown search type %v", op.searchType))
+	}
+	sb.WriteString(op.opKey.String())
+	sb.WriteString(" in ")
+	sb.WriteString(op.opColl.String())
+	if op.opDef != nil {
+		sb.WriteString(" default ")
+		sb.WriteString(op.opDef.String())
+	}
+	sb.WriteString(")")
+	return sb.String()
+}
+
 func NewExprSearch(opKey, opColl, opDef Expression, searchType SearchType, resType TypeSignature, line, col int) Expression {
 	return &exprSearch{
 		baseExpression: newBaseExpression(resType, line, col),
@@ -659,6 +832,21 @@ func (op *exprSequence) Evaluate(recCtx RequestContext) (Value, error) {
 		}
 	}
 	return res, nil
+}
+
+func (op *exprSequence) String() string {
+	var sb strings.Builder
+	sb.WriteString("{")
+	first := true
+	for _, expr := range op.ops {
+		if !first {
+			sb.WriteString(" ")
+		}
+		sb.WriteString(expr.String())
+		first = false
+	}
+	sb.WriteString("}")
+	return sb.String()
 }
 
 func NewExprSequence(ops []Expression, line, col int) Expression {

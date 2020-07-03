@@ -248,37 +248,30 @@ func TestValue_Compare(t *testing.T) {
 	}
 }
 
-func TestValue_NaturalStringValue(t *testing.T) {
+func TestValue_String(t *testing.T) {
 	tests := []struct {
 		name  string
 		value Value
-		pnic  bool
-		str   string
+		str   string ``
 	}{
-		{"nil", EvNil, false, "<<nil>>"},
-		{"boolean", NewExprValueBoolean(true), false, "true"},
-		{"integer", NewExprValueInteger(5), false, "5"},
+		{"nil", EvNil, `<<nil>>`},
+		{"boolean", NewExprValueBoolean(true), `true`},
+		{"integer", NewExprValueInteger(5), `5`},
 		{"list", NewExprValueList(NewScalarTypeSignature(VTString), []Value{
-			NewExprValueString("value1"), NewExprValueString("value2")}), true, ""},
+			NewExprValueString("value1"), NewExprValueString("value2")}),
+			`["value1","value2"]`},
 		{"map", NewExprValueMap(NewScalarTypeSignature(VTString), map[string]Value{
 			"key1": NewExprValueString("value1"),
-			"key2": NewExprValueString("value2")}), true, ""},
-		{"regexp", NewExprValueRegexpMust("[0-9]{3}"), false, "[0-9]{3}"},
-		{"string", NewExprValueString("value"), false, "value"},
+			"key2": NewExprValueString("value2")}),
+			`{key1:"value1",key2:"value2"}`},
+		{"regexp", NewExprValueRegexpMust("[0-9]{3}"), `"[0-9]{3}"`},
+		{"string", NewExprValueString("value"), `"value"`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			defer func() {
-				rec := recover()
-				if rec != nil {
-					if !test.pnic {
-						t.Errorf("unexpected panic: %v", rec)
-					}
-				}
-			}()
-			res := test.value.NaturalStringValue()
-			if res != test.str {
-				t.Errorf("invalid result (%v != %v)", res, test.str)
+			str := test.value.String()
+			if str != test.str {
+				t.Errorf("invalid string result.\nactual:   %v\nexpected: %v", str, test.str)
 			}
 		})
 	}
@@ -406,6 +399,7 @@ func TestNewExprValue(t *testing.T) {
 				map[string]Value{"k1": NewExprValueMust(NewScalarTypeSignature(VTString), "v1")})},
 		{"regexp", NewScalarTypeSignature(VTRegexp), "[0-9]{3}", NewExprValueRegexpMust("[0-9]{3}")},
 		{"string", NewScalarTypeSignature(VTString), "a string", NewExprValueString("a string")},
+		{"string trim markers", NewScalarTypeSignature(VTString), `"a string"`, NewExprValueString("a string")},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
