@@ -527,13 +527,10 @@ func NewExprValueRegexpMust(value string) Value {
 	return re
 }
 
-// NewExprValueString creates a new expression string value.
-// Note that eventual string markers (") in the specified raw string is trimmed. This is to avoid creating
-// double markers (""a string"") when using String() on the created expression string value.
 func NewExprValueString(value string) Value {
 	v := Value{
 		Type:  NewScalarTypeSignature(VTString),
-		Value: strings.Trim(value, "\""),
+		Value: value,
 	}
 	return v
 }

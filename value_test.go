@@ -399,7 +399,6 @@ func TestNewExprValue(t *testing.T) {
 				map[string]Value{"k1": NewExprValueMust(NewScalarTypeSignature(VTString), "v1")})},
 		{"regexp", NewScalarTypeSignature(VTRegexp), "[0-9]{3}", NewExprValueRegexpMust("[0-9]{3}")},
 		{"string", NewScalarTypeSignature(VTString), "a string", NewExprValueString("a string")},
-		{"string trim markers", NewScalarTypeSignature(VTString), `"a string"`, NewExprValueString("a string")},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
