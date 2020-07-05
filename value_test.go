@@ -461,6 +461,15 @@ func TestNewExprValueMustPanic(t *testing.T) {
 	NewExprValueMust(NewScalarTypeSignature(VTString), 5)
 }
 
+type testEnumStr string
+type testEnumInt int
+type testEnumUInt uint
+type testStringMethod struct{}
+
+func (t testStringMethod) String() string {
+	return "string method"
+}
+
 func TestNewExprValueFromInterface(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -487,6 +496,11 @@ func TestNewExprValueFromInterface(t *testing.T) {
 				map[string]Value{"k1": NewExprValueMust(NewScalarTypeSignature(VTString), "v1")})},
 		{"nil", nil, EvNil},
 		{"string", "a string", NewExprValueString("a string")},
+		//------------------------
+		{"string enum", testEnumStr("enum str"), NewExprValueString("enum str")},
+		{"int enum", testEnumInt(5), NewExprValueInteger(5)},
+		{"uint enum", testEnumUInt(5), NewExprValueInteger(5)},
+		{"string from string method", testStringMethod{}, NewExprValueString("string method")},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

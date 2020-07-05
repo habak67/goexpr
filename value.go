@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/habak67/go-utils"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -443,9 +444,23 @@ func NewExprValueFromInterface(value interface{}) (Value, error) {
 	case string:
 		// As a string will be a VTString we can't create regexp
 		return NewExprValue(NewScalarTypeSignature(VTString), v)
-	default:
-		return EvNil, fmt.Errorf("can't convert go value %v to an expression value", v)
 	}
+	// Common "enumeration types"
+	switch reflect.TypeOf(value).Kind() {
+	case reflect.String:
+		return NewExprValueString(reflect.ValueOf(value).String()), nil
+	case reflect.Int:
+		return NewExprValueInteger(int(reflect.ValueOf(value).Int())), nil
+	case reflect.Uint:
+		return NewExprValueInteger(int(reflect.ValueOf(value).Uint())), nil
+	}
+	// If the value is a Stringer use the String method
+	v, ok := value.(fmt.Stringer)
+	if ok {
+		return NewExprValueString(v.String()), nil
+	}
+	// Now we give up...
+	return EvNil, fmt.Errorf("can't convert go value (%v) to an expression value", value)
 }
 
 func NewExprValueFromString(ts TypeSignature, value string) (Value, error) {
