@@ -2,6 +2,7 @@ package goexpr
 
 import (
 	"fmt"
+	"github.com/habak67/gopather"
 	"strings"
 )
 
@@ -49,4 +50,12 @@ func newEmptyTestRequestContext() RequestContext {
 
 func newTestRequestContext(values map[string]string) RequestContext {
 	return testRequestContext{Values: values}
+}
+
+func compilePathMust(path string) *gopather.PathLookup {
+	pl, err := gopather.Compile(path)
+	if err != nil {
+		panic(fmt.Sprintf("error creating path lookup from path %s: %v", path, err))
+	}
+	return pl
 }

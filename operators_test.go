@@ -76,8 +76,11 @@ func TestOperator_String(t *testing.T) {
 		{"OpLogicalNotTrue", NewExprLogicalUnary(LTNot, NewExprConstant(NewExprValueBoolean(true), l, c),
 			l, c),
 			`(not true)`},
-		{"OpLogicalOrTrueTrue", NewExprHeapReference("ref", "my/ref", l, c),
+		// reference ---------------------------------------
+		{"OpHeapRef string", NewExprHeapReference("ref", "my/ref", l, c),
 			`my/ref`},
+		{"OpHeapRef path lookup", NewExprHeapReference("state", compilePathMust("state"), l, c),
+			`state`},
 		// search ---------------------------------------
 		{"OpSearchExistListFound", NewExprSearch(
 			NewExprConstant(NewExprValueString("bar"), l, c),
@@ -109,6 +112,11 @@ func TestOperator_String(t *testing.T) {
 			NewExprConstant(NewExprValueString("foo"), l, c),
 			NewExprConstant(NewExprValueBoolean(true), l, c)}, l, c),
 			`{"foo" true}`},
+		// compound ---------------------------------------
+		{"Compound 1", NewExprCompareMust(CTEqual,
+			NewExprHeapReference("state", compilePathMust("state"), l, c),
+			NewExprConstant(NewExprValueString("succeeded"), l, c), l, c),
+			`(state == "succeeded")`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -653,11 +653,11 @@ func (op *exprReference) String() string {
 	var sb strings.Builder
 	switch op.source {
 	case RSHeap:
-		sb.WriteString(fmt.Sprintf("%v", op.key))
+		sb.WriteString(fmt.Sprint(op.key))
 	case RSValue:
 		sb.WriteString(op.sourceOp.String())
 		sb.WriteString(".")
-		sb.WriteString(fmt.Sprintf("%v", op.key))
+		sb.WriteString(fmt.Sprint(op.key))
 	default:
 		panic(fmt.Sprintf("unknown reference source %v", op.source))
 	}
